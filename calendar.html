@@ -95,22 +95,76 @@ input, select, textarea { width:100%; margin-bottom:10px; padding:8px; border:no
 <form onsubmit="submitEvent(event)">
 <input type="text" id="name" placeholder="Event Name" required>
 <input type="date" id="date" required>
-
 <select id="location" required>
 <option value="">Select Location</option>
-<option>Mallala (Circuit)</option>
-<option>The Bend (Circuit)</option>
-<option>Collingrove (Hillclimb)</option>
+
+<option>Twin Peaks (Hillclimb)</option>
+<option>SEAC Park (Motorkhana)</option>
+<option>Backbone (Hillclimb)</option>
+<option>Willunga (Hillclimb)</option>
 <option>Victoria Park (Circuit)</option>
-<option>Adelaide International Raceway</option>
-</select>
+<option>Port Lincoln (Dirt Circuit)</option>
+<option>Collingrove (Hillclimb)</option>
+<option>Mallala (Circuit)</option>
+<option>Mallala (Trackdays)</option>
+<option>Mallala (Burnouts/Drift/Motorkhana)</option>
+<option>Truro (Dirt Circuit)</option>
+<option>Arno Bay (Dirt Circuit)</option>
+<option>Port Pirie (Dirt Circuit)</option>
+<option>Whyalla (Speedway/Drags/Dirt Circuit)</option>
+<option>UDMX Park (Drifts)</option>
+<option>Pt Augusta (Dirt Circuit)</option>
+<option>Ceduna (Dirt Circuit)</option>
+
+<option>Borderline (Speedway)</option>
+<option>Legend of the Lakes (Hillclimb)</option>
+<option>Millicent (Offroad/Motorkhana)</option>
+<option>Apsley (Dirt Circuit)</option>
+<option>Tolmer (Speedway)</option>
+
+<option>The Bend (Circuit)</option>
+<option>The Bend (Trackdays)</option>
+<option>The Bend (Drifts)</option>
+<option>The Bend (Drags)</option>
+<option>The Bend (Burnouts)</option>
+<option>The Bend (Hillclimb/Sprints)</option>
+
+<option>Murray Bridge (Speedway)</option>
+<option>Cambrai (Khanacross)</option>
+<option>Riverland Enduro (Offroad)</option>
+<option>Walky Park (Khanacross)</option>
+<option>Riverland (Speedway)</option>
+<option>Sunline (Speedway)</option>
+<option>Black Rock (Dirt Circuit)</option>
+<option>Lake Gairdner (Dry Lake Bed)</option>
+<option>Roxby Downs (Dirt Circuit)</option>
+
+<option>Adelaide International Raceway (Circuit)</option>
 
 <select id="discipline" required>
 <option value="">Select Discipline</option>
-<option>Drifting</option>
+
+<option>Motorkhana</option>
 <option>Track Day</option>
-<option>Drag Racing</option>
 <option>Hillclimb</option>
+<option>Sprint Event</option>
+<option>Budget Circuit Racing</option>
+<option>Circuit Racing</option>
+<option>Roll Racing</option>
+<option>Drag Racing</option>
+<option>Burnouts</option>
+<option>Drifting</option>
+<option>Rally</option>
+<option>Speedway</option>
+<option>Dirt Circuit</option>
+<option>Off Road</option>
+<option>Karting</option>
+<option>Dirt Karts</option>
+<option>Motorcycle</option>
+<option>Dirt Bikes</option>
+<option>Other Racing</option>
+<option>Interstate/International</option>
+
 </select>
 
 <textarea id="description" placeholder="Description" required></textarea>
@@ -192,17 +246,26 @@ function generateCalendar(){
 
     let fullDate=`${year}-${String(month+1).padStart(2,'0')}-${String(d).padStart(2,'0')}`;
 
-    events.forEach(ev=>{
-      if(ev.date===fullDate){
-        let e=document.createElement('div');
-        e.className='event';
-        e.textContent = ev.name || ev.discipline;
+events.forEach(ev=>{
+  if(ev.date===fullDate){
+    let e=document.createElement('div');
+    e.className='event';
 
-        e.onclick = () => showPopup(ev);
+    // Format: Name @ Location
+    let title = ev.name ? ev.name : ev.discipline;
 
-        div.appendChild(e);
-      }
-    });
+    // Shorten location for display (optional but nice)
+    let shortLocation = ev.location ? ev.location.split(" (")[0] : "";
+
+    e.textContent = shortLocation 
+      ? `${title} @ ${shortLocation}` 
+      : title;
+
+    e.onclick = () => showPopup(ev);
+
+    div.appendChild(e);
+  }
+});
 
     cal.appendChild(div);
   }
