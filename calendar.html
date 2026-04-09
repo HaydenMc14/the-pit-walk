@@ -324,22 +324,102 @@ let markers = {};
 function initMap() {
   map = new google.maps.Map(document.getElementById("map"), {
     zoom: 6,
-    center: { lat: -34.5, lng: 138.5 }
+    center: { lat: -34.5, lng: 138.5 },
+
+    // 🌙 DARK MODE STYLE
+    styles: [
+      { elementType: "geometry", stylers: [{ color: "#1d2c4d" }] },
+      { elementType: "labels.text.fill", stylers: [{ color: "#8ec3b9" }] },
+      { elementType: "labels.text.stroke", stylers: [{ color: "#1a3646" }] },
+      {
+        featureType: "administrative.country",
+        elementType: "geometry.stroke",
+        stylers: [{ color: "#4b6878" }]
+      },
+      {
+        featureType: "landscape",
+        elementType: "geometry",
+        stylers: [{ color: "#0d0d0d" }]
+      },
+      {
+        featureType: "poi",
+        elementType: "geometry",
+        stylers: [{ color: "#283d6a" }]
+      },
+      {
+        featureType: "road",
+        elementType: "geometry",
+        stylers: [{ color: "#38414e" }]
+      },
+      {
+        featureType: "water",
+        elementType: "geometry",
+        stylers: [{ color: "#000000" }]
+      }
+    ]
   });
 
   const locations = [
-    {name:"Mallala", lat:-34.44, lng:138.50},
-    {name:"The Bend", lat:-35.3, lng:139.5},
-    {name:"Collingrove", lat:-34.6, lng:138.9},
+
+    {name:"Twin Peaks", lat:-34.7, lng:138.7},
+    {name:"SEAC Park", lat:-34.9, lng:138.6},
+    {name:"Backbone", lat:-34.6, lng:138.9},
+    {name:"Willunga", lat:-35.3, lng:138.5},
     {name:"Victoria Park", lat:-34.92, lng:138.62},
+    {name:"Port Lincoln", lat:-34.72, lng:135.86},
+    {name:"Collingrove", lat:-34.6, lng:138.9},
+    {name:"Mallala", lat:-34.44, lng:138.50},
+    {name:"Truro", lat:-34.4, lng:139.1},
+    {name:"Arno Bay", lat:-33.9, lng:136.6},
+    {name:"Port Pirie", lat:-33.2, lng:138.0},
+    {name:"Whyalla", lat:-33.03, lng:137.58},
+    {name:"UDMX Park", lat:-34.8, lng:138.6},
+    {name:"Pt Augusta", lat:-32.5, lng:137.8},
+    {name:"Ceduna", lat:-32.13, lng:133.68},
+
+    {name:"Borderline Speedway", lat:-37.83, lng:140.78},
+    {name:"Legend of the Lakes", lat:-37.7, lng:140.6},
+    {name:"Millicent", lat:-37.6, lng:140.3},
+    {name:"Apsley", lat:-36.9, lng:141.1},
+    {name:"Tolmer Speedway", lat:-37.3, lng:140.8},
+
+    {name:"The Bend", lat:-35.3, lng:139.5},
+
+    {name:"Murray Bridge", lat:-35.12, lng:139.27},
+    {name:"Cambrai", lat:-34.6, lng:139.3},
+    {name:"Riverland Enduro", lat:-34.2, lng:140.6},
+    {name:"Walky Park", lat:-34.3, lng:139.0},
+    {name:"Riverland Speedway", lat:-34.2, lng:140.6},
+    {name:"Sunline Speedway", lat:-34.3, lng:140.6},
+    {name:"Black Rock", lat:-33.5, lng:138.9},
+    {name:"Lake Gairdner", lat:-31.5, lng:136.0},
+    {name:"Roxby Downs", lat:-30.56, lng:136.88},
+
     {name:"Adelaide International Raceway", lat:-34.7, lng:138.5}
+
   ];
 
   locations.forEach(loc => {
     const marker = new google.maps.Marker({
       position: { lat: loc.lat, lng: loc.lng },
       map,
-      title: loc.name
+      title: loc.name,
+      icon: {
+        path: google.maps.SymbolPath.CIRCLE,
+        scale: 6,
+        fillColor: "#ffd100",
+        fillOpacity: 1,
+        strokeWeight: 1,
+        strokeColor: "#000"
+      }
+    });
+
+    const info = new google.maps.InfoWindow({
+      content: `<strong>${loc.name}</strong>`
+    });
+
+    marker.addListener("click", () => {
+      info.open(map, marker);
     });
 
     markers[loc.name] = marker;
