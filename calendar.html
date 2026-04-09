@@ -1,107 +1,221 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-  <meta charset="UTF-8">
-  <title>Calendar - The Pit Walk</title>
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta charset="UTF-8">
+<title>Calendar - The Pit Walk</title>
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
 
-  <style>
-    body {
-      margin: 0;
-      font-family: Arial, sans-serif;
-      background-color: #0d0d0d;
-      color: #fff;
-    }
+<style>
+body { margin:0; font-family:Arial; background:#0d0d0d; color:#fff; }
+header { background:#000; padding:20px; text-align:center; border-bottom:3px solid #ffd100; }
+header h1 { color:#ffd100; margin:0; }
+nav a { color:#fff; margin:0 15px; text-decoration:none; font-weight:bold; }
 
-    header {
-      background: #000;
-      padding: 20px;
-      text-align: center;
-      border-bottom: 3px solid #ffd100;
-    }
+.section { padding:20px; max-width:1100px; margin:auto; }
 
-    header h1 {
-      color: #ffd100;
-      margin: 0;
-    }
+.controls { text-align:center; margin-bottom:10px; }
+button { background:#ffd100; border:none; padding:8px 15px; margin:5px; font-weight:bold; cursor:pointer; }
 
-    nav a {
-      color: #fff;
-      margin: 0 15px;
-      text-decoration: none;
-      font-weight: bold;
-    }
+.calendar { display:grid; grid-template-columns:repeat(7,1fr); gap:5px; }
+.day-name { text-align:center; color:#ffd100; font-weight:bold; }
+.day { background:#1a1a1a; min-height:100px; padding:5px; border-radius:6px; }
+.date { font-size:12px; color:#aaa; }
 
-    .section {
-      padding: 40px 20px;
-      max-width: 1000px;
-      margin: auto;
-    }
+.event { background:#ffd100; color:#000; margin-top:5px; padding:3px; border-radius:4px; font-size:12px; display:block; text-decoration:none; }
 
-    .event {
-      background: #1a1a1a;
-      margin-bottom: 20px;
-      padding: 20px;
-      border-left: 5px solid #ffd100;
-      border-radius: 8px;
-    }
+form { margin-top:30px; background:#1a1a1a; padding:20px; border-radius:10px; }
+input, select, textarea { width:100%; margin-bottom:10px; padding:8px; border:none; border-radius:5px; }
 
-    .event h3 {
-      margin: 0;
-      color: #ffd100;
-    }
-
-    .event a {
-      display: inline-block;
-      margin-top: 10px;
-      color: #000;
-      background: #ffd100;
-      padding: 8px 15px;
-      text-decoration: none;
-      border-radius: 5px;
-      font-weight: bold;
-    }
-  </style>
+</style>
 </head>
 
 <body>
 
 <header>
-  <h1>THE PIT WALK</h1>
-  <nav>
-    <a href="index.html">Home</a>
-    <a href="calendar.html">Calendar</a>
-    <a href="gallery.html">Gallery</a>
-    <a href="ai.html">AI Articles</a>
-  </nav>
+<h1>THE PIT WALK</h1>
+<nav>
+<a href="index.html">Home</a>
+<a href="calendar.html">Calendar</a>
+<a href="gallery.html">Gallery</a>
+<a href="ai.html">AI Articles</a>
+</nav>
 </header>
 
 <section class="section">
-  <h2>Upcoming Events</h2>
-  <div id="events"></div>
+
+<div class="controls">
+<button onclick="changeMonth(-1)">⬅</button>
+<span id="monthLabel"></span>
+<button onclick="changeMonth(1)">➡</button>
+</div>
+
+<div class="calendar" id="calendar"></div>
+
+<h2>Submit Event</h2>
+
+<form onsubmit="submitEvent(event)">
+<input type="date" id="date" required>
+
+<select id="location" required>
+<option value="">Select Location</option>
+<option>Twin Peaks (Hillclimb)</option>
+<option>SEAC Park (Motorkhana)</option>
+<option>Backbone (Hillclimb)</option>
+<option>Willunga (Hillclimb)</option>
+<option>Victoria Park (Circuit)</option>
+<option>Port Lincoln (Dirt Circuit)</option>
+<option>Collingrove (Hillclimb)</option>
+<option>Mallala (Circuit)</option>
+<option>Truro (Dirt Circuit)</option>
+<option>Arno Bay (Dirt Circuit)</option>
+<option>Port Pirie (Dirt Circuit)</option>
+<option>Whyalla</option>
+<option>UDMX Park</option>
+<option>Pt Augusta</option>
+<option>Ceduna</option>
+<option>Borderline</option>
+<option>Legend of the Lakes</option>
+<option>Millicent</option>
+<option>Apsley</option>
+<option>Tolmer</option>
+<option>The Bend</option>
+<option>Murray Bridge</option>
+<option>Cambrai</option>
+<option>Riverland Enduro</option>
+<option>Walky Park</option>
+<option>Riverland Speedway</option>
+<option>Sunline</option>
+<option>Black Rock</option>
+<option>Lake Gairdner</option>
+<option>Roxby Downs</option>
+<option>Adelaide International Raceway</option>
+</select>
+
+<select id="discipline" required>
+<option value="">Select Discipline</option>
+<option>Motorkhana</option>
+<option>Track Day</option>
+<option>Hillclimb</option>
+<option>Sprint Event</option>
+<option>Budget Circuit Racing</option>
+<option>Circuit Racing</option>
+<option>Roll Racing</option>
+<option>Drag Racing</option>
+<option>Burnouts</option>
+<option>Drifting</option>
+<option>Rally</option>
+<option>Speedway</option>
+<option>Dirt Circuit</option>
+<option>Off Road</option>
+<option>Karting</option>
+<option>Dirt Karts</option>
+<option>Motorcycle</option>
+<option>Dirt Bikes</option>
+<option>Other Racing</option>
+<option>Interstate/International</option>
+</select>
+
+<textarea id="description" placeholder="Description" required></textarea>
+<input type="url" id="link" placeholder="Facebook link" required>
+
+<button type="submit">Submit</button>
+</form>
+
 </section>
 
+<!-- Firebase (COMPAT VERSION) -->
+<script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-app.js"></script>
+<script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-firestore.js"></script>
+
 <script>
-fetch('events.json')
-  .then(response => response.json())
-  .then(data => {
-    const container = document.getElementById('events');
+// 🔥 PASTE YOUR CONFIG HERE
+const firebaseConfig = {
+  apiKey: "PASTE",
+  authDomain: "PASTE",
+  projectId: "PASTE"
+};
 
-    data.forEach(event => {
-      const div = document.createElement('div');
-      div.className = 'event';
+firebase.initializeApp(firebaseConfig);
+const db = firebase.firestore();
 
-      div.innerHTML = `
-        <h3>${event.title}</h3>
-        <p><strong>Date:</strong> ${event.date}</p>
-        <p><strong>Location:</strong> ${event.location}</p>
-        <p>${event.description}</p>
-        <a href="${event.link}" target="_blank">View Event</a>
-      `;
+let events = [];
+let currentDate = new Date();
 
-      container.appendChild(div);
-    });
+// LOAD EVENTS
+db.collection("events").onSnapshot(snapshot => {
+  events = [];
+  snapshot.forEach(doc => events.push(doc.data()));
+  generateCalendar();
+});
+
+// CALENDAR
+function generateCalendar(){
+  const cal = document.getElementById('calendar');
+  cal.innerHTML = "";
+
+  const year = currentDate.getFullYear();
+  const month = currentDate.getMonth();
+
+  document.getElementById('monthLabel').textContent =
+    currentDate.toLocaleString('default', { month:'long', year:'numeric' });
+
+  const firstDay = new Date(year, month, 1).getDay();
+  const days = new Date(year, month+1, 0).getDate();
+
+  ["Sun","Mon","Tue","Wed","Thu","Fri","Sat"].forEach(d=>{
+    let el=document.createElement('div');
+    el.className='day-name';
+    el.textContent=d;
+    cal.appendChild(el);
   });
+
+  for(let i=0;i<firstDay;i++) cal.appendChild(document.createElement('div'));
+
+  for(let d=1; d<=days; d++){
+    let div=document.createElement('div');
+    div.className='day';
+
+    let dateDiv=document.createElement('div');
+    dateDiv.className='date';
+    dateDiv.textContent=d;
+    div.appendChild(dateDiv);
+
+    let fullDate=`${year}-${String(month+1).padStart(2,'0')}-${String(d).padStart(2,'0')}`;
+
+    events.forEach(ev=>{
+      if(ev.date===fullDate){
+        let e=document.createElement('a');
+        e.className='event';
+        e.href=ev.link;
+        e.target="_blank";
+        e.textContent=ev.discipline;
+        div.appendChild(e);
+      }
+    });
+
+    cal.appendChild(div);
+  }
+}
+
+function changeMonth(dir){
+  currentDate.setMonth(currentDate.getMonth()+dir);
+  generateCalendar();
+}
+
+// SUBMIT EVENT
+function submitEvent(e){
+  e.preventDefault();
+
+  db.collection("events").add({
+    date: document.getElementById('date').value,
+    location: document.getElementById('location').value,
+    discipline: document.getElementById('discipline').value,
+    description: document.getElementById('description').value,
+    link: document.getElementById('link').value
+  });
+
+  alert("Event submitted!");
+}
 </script>
 
 </body>
