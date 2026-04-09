@@ -1,0 +1,119 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>Gallery - The Pit Walk</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+
+  <style>
+    body {
+      margin: 0;
+      font-family: Arial, sans-serif;
+      background-color: #0d0d0d;
+      color: #fff;
+    }
+
+    header {
+      background: #000;
+      padding: 20px;
+      text-align: center;
+      border-bottom: 3px solid #ffd100;
+    }
+
+    header h1 {
+      margin: 0;
+      color: #ffd100;
+      letter-spacing: 2px;
+    }
+
+    nav {
+      margin-top: 10px;
+    }
+
+    nav a {
+      color: #fff;
+      text-decoration: none;
+      margin: 0 15px;
+      font-weight: bold;
+    }
+
+    nav a:hover {
+      color: #ffd100;
+    }
+
+    .section {
+      padding: 40px 20px;
+      max-width: 1200px;
+      margin: auto;
+    }
+
+    .section h2 {
+      color: #ffd100;
+      margin-bottom: 20px;
+      text-align: center;
+    }
+
+    .gallery {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+      gap: 15px;
+    }
+
+    .gallery img, .gallery video {
+      width: 100%;
+      border-radius: 8px;
+      border: 2px solid #222;
+      transition: transform 0.2s, border 0.2s;
+    }
+
+    .gallery img:hover, .gallery video:hover {
+      transform: scale(1.03);
+      border-color: #ffd100;
+    }
+
+    footer {
+      text-align: center;
+      padding: 20px;
+      background: #000;
+      border-top: 3px solid #ffd100;
+      margin-top: 40px;
+    }
+  </style>
+</head>
+
+<body>
+
+<header>
+  <h1>THE PIT WALK</h1>
+  <nav>
+    <a href="index.html">Home</a>
+    <a href="calendar.html">Calendar</a>
+    <a href="gallery.html">Gallery</a>
+    <a href="ai.html">AI Articles</a>
+  </nav>
+</header>
+
+<section class="section">
+  <h2>Media Gallery</h2>
+
+  <div class="gallery">
+    
+    <!-- IMAGE EXAMPLES -->
+    <img src="images/photo1.jpg" alt="Car photo">
+    <img src="images/photo2.jpg" alt="Car photo">
+    <img src="images/photo3.jpg" alt="Car photo">
+
+    <!-- VIDEO EXAMPLE -->
+    <video controls>
+      <source src="images/video1.mp4" type="video/mp4">
+    </video>
+
+  </div>
+</section>
+
+<footer>
+  <p>© 2026 The Pit Walk</p>
+</footer>
+
+</body>
+</html>
