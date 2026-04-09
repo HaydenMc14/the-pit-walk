@@ -9,6 +9,7 @@
 body { margin:0; font-family:Arial; background:#0d0d0d; color:#fff; }
 header { background:#000; padding:20px; text-align:center; border-bottom:3px solid #ffd100; }
 header h1 { color:#ffd100; margin:0; }
+
 nav a { color:#fff; margin:0 15px; text-decoration:none; font-weight:bold; }
 
 .section { padding:20px; max-width:1100px; margin:auto; }
@@ -19,13 +20,51 @@ button { background:#ffd100; border:none; padding:8px 15px; margin:5px; font-wei
 .calendar { display:grid; grid-template-columns:repeat(7,1fr); gap:5px; }
 .day-name { text-align:center; color:#ffd100; font-weight:bold; }
 .day { background:#1a1a1a; min-height:100px; padding:5px; border-radius:6px; }
+
 .date { font-size:12px; color:#aaa; }
 
-.event { background:#ffd100; color:#000; margin-top:5px; padding:3px; border-radius:4px; font-size:12px; display:block; text-decoration:none; }
+.event {
+  background:#ffd100;
+  color:#000;
+  margin-top:5px;
+  padding:3px;
+  border-radius:4px;
+  font-size:12px;
+  cursor:pointer;
+}
 
 form { margin-top:30px; background:#1a1a1a; padding:20px; border-radius:10px; }
 input, select, textarea { width:100%; margin-bottom:10px; padding:8px; border:none; border-radius:5px; }
 
+/* POPUP */
+.popup {
+  position:fixed;
+  top:0;
+  left:0;
+  width:100%;
+  height:100%;
+  background:rgba(0,0,0,0.8);
+  display:none;
+  justify-content:center;
+  align-items:center;
+}
+
+.popup-content {
+  background:#1a1a1a;
+  padding:20px;
+  border-radius:10px;
+  max-width:400px;
+}
+
+.popup a {
+  display:inline-block;
+  margin-top:10px;
+  background:#ffd100;
+  color:#000;
+  padding:8px 15px;
+  text-decoration:none;
+  font-weight:bold;
+}
 </style>
 </head>
 
@@ -54,65 +93,24 @@ input, select, textarea { width:100%; margin-bottom:10px; padding:8px; border:no
 <h2>Submit Event</h2>
 
 <form onsubmit="submitEvent(event)">
+<input type="text" id="name" placeholder="Event Name" required>
 <input type="date" id="date" required>
 
 <select id="location" required>
 <option value="">Select Location</option>
-<option>Twin Peaks (Hillclimb)</option>
-<option>SEAC Park (Motorkhana)</option>
-<option>Backbone (Hillclimb)</option>
-<option>Willunga (Hillclimb)</option>
-<option>Victoria Park (Circuit)</option>
-<option>Port Lincoln (Dirt Circuit)</option>
-<option>Collingrove (Hillclimb)</option>
 <option>Mallala (Circuit)</option>
-<option>Truro (Dirt Circuit)</option>
-<option>Arno Bay (Dirt Circuit)</option>
-<option>Port Pirie (Dirt Circuit)</option>
-<option>Whyalla</option>
-<option>UDMX Park</option>
-<option>Pt Augusta</option>
-<option>Ceduna</option>
-<option>Borderline</option>
-<option>Legend of the Lakes</option>
-<option>Millicent</option>
-<option>Apsley</option>
-<option>Tolmer</option>
-<option>The Bend</option>
-<option>Murray Bridge</option>
-<option>Cambrai</option>
-<option>Riverland Enduro</option>
-<option>Walky Park</option>
-<option>Riverland Speedway</option>
-<option>Sunline</option>
-<option>Black Rock</option>
-<option>Lake Gairdner</option>
-<option>Roxby Downs</option>
+<option>The Bend (Circuit)</option>
+<option>Collingrove (Hillclimb)</option>
+<option>Victoria Park (Circuit)</option>
 <option>Adelaide International Raceway</option>
 </select>
 
 <select id="discipline" required>
 <option value="">Select Discipline</option>
-<option>Motorkhana</option>
-<option>Track Day</option>
-<option>Hillclimb</option>
-<option>Sprint Event</option>
-<option>Budget Circuit Racing</option>
-<option>Circuit Racing</option>
-<option>Roll Racing</option>
-<option>Drag Racing</option>
-<option>Burnouts</option>
 <option>Drifting</option>
-<option>Rally</option>
-<option>Speedway</option>
-<option>Dirt Circuit</option>
-<option>Off Road</option>
-<option>Karting</option>
-<option>Dirt Karts</option>
-<option>Motorcycle</option>
-<option>Dirt Bikes</option>
-<option>Other Racing</option>
-<option>Interstate/International</option>
+<option>Track Day</option>
+<option>Drag Racing</option>
+<option>Hillclimb</option>
 </select>
 
 <textarea id="description" placeholder="Description" required></textarea>
@@ -123,12 +121,23 @@ input, select, textarea { width:100%; margin-bottom:10px; padding:8px; border:no
 
 </section>
 
-<!-- Firebase (COMPAT VERSION) -->
+<!-- POPUP -->
+<div class="popup" id="popup" onclick="closePopup()">
+  <div class="popup-content" onclick="event.stopPropagation()">
+    <h3 id="pName"></h3>
+    <p id="pDate"></p>
+    <p id="pLocation"></p>
+    <p id="pDiscipline"></p>
+    <p id="pDesc"></p>
+    <a id="pLink" target="_blank">View Event</a>
+  </div>
+</div>
+
+<!-- Firebase -->
 <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-app.js"></script>
 <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-firestore.js"></script>
 
 <script>
-// 🔥 PASTE YOUR CONFIG HERE
 const firebaseConfig = {
   apiKey: "AIzaSyCD2ZrGovFh1EkHIXp943WHAV8kcGW8-UY",
   authDomain: "pit-walk.firebaseapp.com",
@@ -144,14 +153,12 @@ const db = firebase.firestore();
 let events = [];
 let currentDate = new Date();
 
-// LOAD EVENTS
 db.collection("events").onSnapshot(snapshot => {
   events = [];
   snapshot.forEach(doc => events.push(doc.data()));
   generateCalendar();
 });
 
-// CALENDAR
 function generateCalendar(){
   const cal = document.getElementById('calendar');
   cal.innerHTML = "";
@@ -187,11 +194,12 @@ function generateCalendar(){
 
     events.forEach(ev=>{
       if(ev.date===fullDate){
-        let e=document.createElement('a');
+        let e=document.createElement('div');
         e.className='event';
-        e.href=ev.link;
-        e.target="_blank";
-        e.textContent=ev.discipline;
+        e.textContent = ev.name || ev.discipline;
+
+        e.onclick = () => showPopup(ev);
+
         div.appendChild(e);
       }
     });
@@ -205,11 +213,11 @@ function changeMonth(dir){
   generateCalendar();
 }
 
-// SUBMIT EVENT
 function submitEvent(e){
   e.preventDefault();
 
   db.collection("events").add({
+    name: document.getElementById('name').value,
     date: document.getElementById('date').value,
     location: document.getElementById('location').value,
     discipline: document.getElementById('discipline').value,
@@ -218,6 +226,20 @@ function submitEvent(e){
   });
 
   alert("Event submitted!");
+}
+
+function showPopup(ev){
+  document.getElementById('popup').style.display = "flex";
+  document.getElementById('pName').textContent = ev.name;
+  document.getElementById('pDate').textContent = "Date: " + ev.date;
+  document.getElementById('pLocation').textContent = "Location: " + ev.location;
+  document.getElementById('pDiscipline').textContent = "Discipline: " + ev.discipline;
+  document.getElementById('pDesc').textContent = ev.description;
+  document.getElementById('pLink').href = ev.link;
+}
+
+function closePopup(){
+  document.getElementById('popup').style.display = "none";
 }
 </script>
 
