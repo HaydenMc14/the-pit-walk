@@ -101,6 +101,7 @@ input, select, textarea { width:100%; margin-bottom:10px; padding:8px; border:no
 <form onsubmit="submitEvent(event)">
 <input type="text" id="name" placeholder="Event Name" required>
 <input type="date" id="date" required>
+
 <select id="location" required>
 <option value="">Select Location</option>
 
@@ -146,32 +147,31 @@ input, select, textarea { width:100%; margin-bottom:10px; padding:8px; border:no
 <option>Roxby Downs (Dirt Circuit)</option>
 
 <option>Adelaide International Raceway (Circuit)</option>
-
-<select id="discipline" required>
-  <option value="">Select Discipline</option>
-
-  <option>Motorkhana</option>
-  <option>Track Day</option>
-  <option>Hillclimb</option>
-  <option>Sprint Event</option>
-  <option>Budget Circuit Racing</option>
-  <option>Circuit Racing</option>
-  <option>Roll Racing</option>
-  <option>Drag Racing</option>
-  <option>Burnouts</option>
-  <option>Drifting</option>
-  <option>Rally</option>
-  <option>Speedway</option>
-  <option>Dirt Circuit</option>
-  <option>Off Road</option>
-  <option>Karting</option>
-  <option>Dirt Karts</option>
-  <option>Motorcycle</option>
-  <option>Dirt Bikes</option>
-  <option>Other Racing</option>
-  <option>Interstate/International</option>
 </select>
 
+<select id="discipline" required>
+<option value="">Select Discipline</option>
+
+<option>Motorkhana</option>
+<option>Track Day</option>
+<option>Hillclimb</option>
+<option>Sprint Event</option>
+<option>Budget Circuit Racing</option>
+<option>Circuit Racing</option>
+<option>Roll Racing</option>
+<option>Drag Racing</option>
+<option>Burnouts</option>
+<option>Drifting</option>
+<option>Rally</option>
+<option>Speedway</option>
+<option>Dirt Circuit</option>
+<option>Off Road</option>
+<option>Karting</option>
+<option>Dirt Karts</option>
+<option>Motorcycle</option>
+<option>Dirt Bikes</option>
+<option>Other Racing</option>
+<option>Interstate/International</option>
 </select>
 
 <textarea id="description" placeholder="Description" required></textarea>
@@ -306,6 +306,9 @@ function showPopup(ev){
   document.getElementById('pDiscipline').textContent = "Discipline: " + ev.discipline;
   document.getElementById('pDesc').textContent = ev.description;
   document.getElementById('pLink').href = ev.link;
+
+  // 🔥 NEW
+  highlightLocation(ev.location);
 }
 
 function closePopup(){
@@ -315,50 +318,21 @@ function closePopup(){
 <script src="https://maps.googleapis.com/maps/api/js?key=AIzaSyBY2LhkURMoJDBX4fWPAzD0-MP4moI8ces&callback=initMap" async defer></script>
 
 <script>
+let map;
+let markers = {};
+
 function initMap() {
-  const map = new google.maps.Map(document.getElementById("map"), {
+  map = new google.maps.Map(document.getElementById("map"), {
     zoom: 6,
     center: { lat: -34.5, lng: 138.5 }
   });
 
   const locations = [
-
-    {name:"Twin Peaks", lat:-34.7, lng:138.7},
-    {name:"SEAC Park", lat:-34.9, lng:138.6},
-    {name:"Backbone", lat:-34.6, lng:138.9},
-    {name:"Willunga", lat:-35.3, lng:138.5},
-    {name:"Victoria Park", lat:-34.92, lng:138.62},
-    {name:"Port Lincoln", lat:-34.72, lng:135.86},
-    {name:"Collingrove", lat:-34.6, lng:138.9},
     {name:"Mallala", lat:-34.44, lng:138.50},
-    {name:"Truro", lat:-34.4, lng:139.1},
-    {name:"Arno Bay", lat:-33.9, lng:136.6},
-    {name:"Port Pirie", lat:-33.2, lng:138.0},
-    {name:"Whyalla", lat:-33.03, lng:137.58},
-    {name:"JDMX Park", lat:-34.8, lng:138.6},
-    {name:"Pt Augusta", lat:-32.5, lng:137.8},
-    {name:"Ceduna", lat:-32.13, lng:133.68},
-
-    {name:"Borderline Speedway", lat:-37.83, lng:140.78},
-    {name:"Legend of the Lakes", lat:-37.7, lng:140.6},
-    {name:"Millicent", lat:-37.6, lng:140.3},
-    {name:"Apsley", lat:-36.9, lng:141.1},
-    {name:"Tolmer Speedway", lat:-37.3, lng:140.8},
-
-    {name:"The Bend Motorsport Park", lat:-35.3, lng:139.5},
-
-    {name:"Murray Bridge Speedway", lat:-35.12, lng:139.27},
-    {name:"Cambrai", lat:-34.6, lng:139.3},
-    {name:"Riverland Enduro", lat:-34.2, lng:140.6},
-    {name:"Walky Park", lat:-34.3, lng:139.0},
-    {name:"Riverland Speedway", lat:-34.2, lng:140.6},
-    {name:"Sunline Speedway", lat:-34.3, lng:140.6},
-    {name:"Black Rock", lat:-33.5, lng:138.9},
-    {name:"Lake Gairdner", lat:-31.5, lng:136.0},
-    {name:"Roxby Downs", lat:-30.56, lng:136.88},
-
+    {name:"The Bend", lat:-35.3, lng:139.5},
+    {name:"Collingrove", lat:-34.6, lng:138.9},
+    {name:"Victoria Park", lat:-34.92, lng:138.62},
     {name:"Adelaide International Raceway", lat:-34.7, lng:138.5}
-
   ];
 
   locations.forEach(loc => {
@@ -368,14 +342,24 @@ function initMap() {
       title: loc.name
     });
 
-    const info = new google.maps.InfoWindow({
-      content: `<strong>${loc.name}</strong>`
-    });
-
-    marker.addListener("click", () => {
-      info.open(map, marker);
-    });
+    markers[loc.name] = marker;
   });
+}
+
+// 🔥 highlight function
+function highlightLocation(locationName) {
+  if (!map || !locationName) return;
+
+  const cleanName = locationName.split(" (")[0];
+  const marker = markers[cleanName];
+
+  if (marker) {
+    map.setZoom(10);
+    map.panTo(marker.getPosition());
+
+    marker.setAnimation(google.maps.Animation.BOUNCE);
+    setTimeout(() => marker.setAnimation(null), 1400);
+  }
 }
 </script>
 </body>
