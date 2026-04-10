@@ -1,0 +1,123 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>AI Articles - The Pit Walk</title>
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+
+<style>
+body {
+  font-family: Arial;
+  background:#0d0d0d;
+  color:#fff;
+  margin:0;
+}
+
+.chat {
+  max-width:600px;
+  margin:auto;
+  padding:20px;
+}
+
+.message {
+  margin-bottom:15px;
+}
+
+.bot {
+  color:#ffd100;
+}
+
+.user {
+  text-align:right;
+}
+
+input, button {
+  width:100%;
+  padding:10px;
+  margin-top:10px;
+}
+</style>
+</head>
+
+<body>
+
+<div class="chat" id="chat"></div>
+
+<div style="max-width:600px;margin:auto;">
+  <input id="input" placeholder="Type your answer...">
+  <button onclick="send()">Send</button>
+</div>
+
+<script>
+const questions = [
+  "What's your name?",
+  "What car is it?",
+  "What engine mods does it have?",
+  "Where was the photo taken?",
+  "What makes this car special to you?",
+  "What inspired this build?",
+  "How long have you owned it?",
+  "What’s your favourite feature?",
+  "What’s next for the car?",
+  "Upload a photo (just describe it for now)"
+];
+
+let step = 0;
+let answers = [];
+
+const chat = document.getElementById("chat");
+
+function addMessage(text, type) {
+  const div = document.createElement("div");
+  div.className = "message " + type;
+  div.innerText = text;
+  chat.appendChild(div);
+  chat.scrollTop = chat.scrollHeight;
+}
+
+function ask() {
+  if (step < questions.length) {
+    addMessage(questions[step], "bot");
+  } else {
+    generateArticle();
+  }
+}
+
+function send() {
+  const input = document.getElementById("input");
+  const value = input.value;
+
+  if (!value) return;
+
+  addMessage(value, "user");
+  answers.push(value);
+  input.value = "";
+
+  step++;
+  ask();
+}
+
+function generateArticle() {
+  const article = `
+Built with passion, ${answers[0]}’s ${answers[1]} is more than just a car—it’s a statement.
+
+From the moment it hits the road, the car reflects a unique personality shaped by inspiration drawn from ${answers[5]}. Under the bonnet, ${answers[2]} gives it the performance to match its aggressive presence.
+
+Captured at ${answers[3]}, the setting perfectly complements the car’s stance and attitude. But beyond aesthetics, what truly defines this build is the connection—${answers[4]}.
+
+Having owned the car for ${answers[6]}, the journey has been just as important as the result. The standout feature? ${answers[7]}.
+
+And it’s not stopping anytime soon. With plans to ${answers[8]}, the evolution continues.
+
+In a scene full of builds, this one stands apart—not just for what it is, but for what it represents.
+  `;
+
+  addMessage("Here’s your article 👇", "bot");
+  addMessage(article, "bot");
+}
+
+ask();
+</script>
+
+</body>
+</html>
