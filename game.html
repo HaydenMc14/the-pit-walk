@@ -110,7 +110,27 @@ function update() {
 
   position += speed;
 }
+function drawSprite(x, y, scale, type) {
 
+  const size = scale * 200;
+
+  if (type === "tree") {
+    // trunk
+    ctx.fillStyle = "#8e5a2b";
+    ctx.fillRect(x - size * 0.1, y - size * 0.5, size * 0.2, size * 0.5);
+
+    // leaves
+    ctx.fillStyle = "#2ecc71";
+    ctx.beginPath();
+    ctx.arc(x, y - size * 0.6, size * 0.4, 0, Math.PI * 2);
+    ctx.fill();
+  }
+
+  if (type === "pole") {
+    ctx.fillStyle = "#ccc";
+    ctx.fillRect(x - size * 0.05, y - size, size * 0.1, size);
+  }
+}
 function render() {
   ctx.fillStyle = "#87CEEB"; // sky
   ctx.fillRect(0, 0, canvas.width, canvas.height);
@@ -142,7 +162,23 @@ function render() {
 
     let proj1 = project(p1, cameraX, cameraY, cameraZ);
     let proj2 = project(p2, cameraX, cameraY, cameraZ);
+// scale based on distance
+let scale = proj1.w / (roadWidth * canvas.width / 2);
 
+// spacing
+if (i % 20 === 0) {
+  // left side tree
+  drawSprite(proj1.x - proj1.w - 100, proj1.y, scale, "tree");
+
+  // right side tree
+  drawSprite(proj1.x + proj1.w + 100, proj1.y, scale, "tree");
+}
+
+// poles more frequent
+if (i % 10 === 0) {
+  drawSprite(proj1.x - proj1.w - 50, proj1.y, scale, "pole");
+  drawSprite(proj1.x + proj1.w + 50, proj1.y, scale, "pole");
+}
     if (proj1.y >= maxY) continue;
 
 drawSegment(proj1, proj2, i);
