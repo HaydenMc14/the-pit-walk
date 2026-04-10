@@ -48,6 +48,15 @@ button {
 
 <body>
 
+<div id="loginScreen" style="text-align:center; margin-top:100px;">
+  <h2 style="color:#ffd100;">Admin Login</h2>
+  <input type="password" id="password" placeholder="Enter password" style="padding:10px;">
+  <br><br>
+  <button onclick="checkPassword()" style="padding:10px; background:#ffd100; border:none;">Enter</button>
+</div>
+
+<div id="adminContent" style="display:none;">
+
 <h1>Pending Events</h1>
 
 <div id="pendingList"></div>
@@ -114,6 +123,21 @@ function deleteEvent(id) {
   db.collection("pendingEvents").doc(id).delete();
 }
 </script>
+</div>
 
+<script>
+function checkPassword() {
+  const input = document.getElementById("password").value;
+
+  const correctPassword = "pitwalkadmin"; // 🔐 CHANGE THIS
+
+  if (input === correctPassword) {
+    document.getElementById("loginScreen").style.display = "none";
+    document.getElementById("adminContent").style.display = "block";
+  } else {
+    alert("Wrong password");
+  }
+}
+</script>
 </body>
 </html>
