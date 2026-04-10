@@ -46,8 +46,40 @@ function project(p, cameraX, cameraY, cameraZ) {
   };
 }
 
-function drawSegment(p1, p2) {
-  ctx.fillStyle = "#444";
+function drawSegment(p1, p2, index) {
+
+  // alternating colours
+  let grassColor = (index % 2 === 0) ? "#2ecc71" : "#27ae60";
+  let rumbleColor = (index % 2 === 0) ? "#ff0000" : "#ffffff";
+  let roadColor = "#444";
+
+  // GRASS (full width)
+  ctx.fillStyle = grassColor;
+  ctx.fillRect(0, p2.y, canvas.width, p1.y - p2.y);
+
+  // RUMBLE STRIPS
+  let rumbleWidth1 = p1.w * 1.2;
+  let rumbleWidth2 = p2.w * 1.2;
+
+  ctx.fillStyle = rumbleColor;
+  ctx.beginPath();
+  ctx.moveTo(p1.x - rumbleWidth1, p1.y);
+  ctx.lineTo(p1.x - p1.w, p1.y);
+  ctx.lineTo(p2.x - p2.w, p2.y);
+  ctx.lineTo(p2.x - rumbleWidth2, p2.y);
+  ctx.closePath();
+  ctx.fill();
+
+  ctx.beginPath();
+  ctx.moveTo(p1.x + p1.w, p1.y);
+  ctx.lineTo(p1.x + rumbleWidth1, p1.y);
+  ctx.lineTo(p2.x + rumbleWidth2, p2.y);
+  ctx.lineTo(p2.x + p2.w, p2.y);
+  ctx.closePath();
+  ctx.fill();
+
+  // ROAD
+  ctx.fillStyle = roadColor;
   ctx.beginPath();
   ctx.moveTo(p1.x - p1.w, p1.y);
   ctx.lineTo(p1.x + p1.w, p1.y);
@@ -55,6 +87,15 @@ function drawSegment(p1, p2) {
   ctx.lineTo(p2.x - p2.w, p2.y);
   ctx.closePath();
   ctx.fill();
+
+  // LANE STRIPES
+  ctx.strokeStyle = "#ffffff";
+  ctx.lineWidth = 2;
+
+  ctx.beginPath();
+  ctx.moveTo(p1.x, p1.y);
+  ctx.lineTo(p2.x, p2.y);
+  ctx.stroke();
 }
 
 function update() {
