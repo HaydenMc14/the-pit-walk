@@ -242,79 +242,15 @@ let currentDate = new Date();
 db.collection("events").onSnapshot(snapshot => {
   events = [];
   snapshot.forEach(doc => events.push(doc.data()));
-function isThisWeek(dateString) {
-  const today = new Date();
-  today.setHours(0,0,0,0);
 
-  const endDate = new Date(today);
-  endDate.setDate(today.getDate() + 7);
+  generateCalendar();
+  renderWeekEvents();
 
-  const eventDate = new Date(dateString);
-
-  return eventDate >= today && eventDate <= endDate;
-}
-function renderWeekEvents() {
-  const container = document.getElementById("weekEvents");
-
-  const upcoming = events.filter(ev => isThisWeek(ev.date));
-
-  if (upcoming.length === 0) {
-    container.innerHTML = "";
-    return;
-  }
-
-  upcoming.sort((a, b) => new Date(a.date) - new Date(b.date));
-
-  let html = `
-    <div style="background:#1a1a1a; padding:15px; border-radius:10px; border-left:5px solid #CC5500;">
-      <h2 style="margin-top:0; color:#CC5500;">🔥 Next 7 Days</h2>
-  `;
-
-  upcoming.forEach((ev, i) => {
-
-    const formatted = formatEventDate(ev.date);
-    const parts = formatted.split(" - ");
-
-    html += `
-      <div id="week-${i}" style="margin-bottom:10px; cursor:pointer;">
-<strong style="color:${getDisciplineColor(ev.discipline)};">
-  ${ev.name}
-</strong>
-        <span style="font-size:12px; color:#ccc;">
-          ${ev.location} • ${parts[0]} - <strong>${parts[1]}</strong>
-        </span>
-      </div>
-    `;
-  });
-
-  html += "</div>";
-
-  container.innerHTML = html;
-
-  // attach click handlers safely
-  setTimeout(() => {
-    upcoming.forEach((ev, i) => {
-      const el = document.getElementById(`week-${i}`);
-      if (el) {
-        el.onclick = () => {
-          showPopup(ev);
-          highlightLocation(ev.location);
-        };
-      }
-    });
-  }, 100);
-} 
-generateCalendar();
-renderWeekEvents();
-  
-  // 🔥 refresh map markers
   if (typeof initMap === "function") {
     initMap();
   }
 });
-  if (hasUpcoming) {
-  marker.setAnimation(google.maps.Animation.DROP);
-}
+
 function isFutureEvent(dateString) {
   const today = new Date();
   today.setHours(0,0,0,0);
@@ -366,8 +302,8 @@ function toggleForm() {
   const form = document.getElementById("eventForm");
   form.style.display = form.style.display === "none" ? "block" : "none";
 }
-
-function generateCalendar(){  
+function isThisWeek(...)
+function renderWeekEvents(...)
 function generateCalendar(){
   
   const cal = document.getElementById('calendar');
