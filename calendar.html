@@ -253,7 +253,9 @@ function renderWeekEvents() {
 
     html += `
       <div id="week-${i}" style="margin-bottom:10px; cursor:pointer;">
-        <strong>${ev.name}</strong><br>
+<strong style="color:${getDisciplineColor(ev.discipline)};">
+  ${ev.name}
+</strong>
         <span style="font-size:12px; color:#ccc;">
           ${ev.location} • ${parts[0]} - <strong>${parts[1]}</strong>
         </span>
@@ -321,7 +323,21 @@ function formatEventDate(dateString) {
 
   return `${day}/${month}/${year} - ${dayName}`;
 }
+function getDisciplineColor(discipline) {
+  if (!discipline) return "#ffd100";
 
+  const d = discipline.toLowerCase();
+
+  if (d.includes("drift")) return "#9b59b6";        // purple
+  if (d.includes("circuit") || d.includes("track")) return "#ffd100"; // yellow
+  if (d.includes("drag")) return "#e74c3c";         // red
+  if (d.includes("hillclimb")) return "#2ecc71";    // green
+  if (d.includes("dirt")) return "#8e5a2b";         // brown
+  if (d.includes("speedway")) return "#3498db";     // blue
+  if (d.includes("rally")) return "#f39c12";        // orange
+
+  return "#ffffff"; // default
+}
 function generateCalendar(){
   
   const cal = document.getElementById('calendar');
@@ -360,7 +376,11 @@ events.forEach(ev=>{
   if(ev.date === fullDate && isFutureEvent(ev.date)){
     let e=document.createElement('div');
     e.className='event';
-
+    
+const color = getDisciplineColor(ev.discipline);
+e.style.background = color;
+e.style.color = "#000";
+    
     // Format: Name @ Location
     let title = ev.name ? ev.name : ev.discipline;
 
@@ -517,14 +537,27 @@ const marker = new google.maps.Marker({
   position: { lat: loc.lat, lng: loc.lng },
   map,
   title: loc.name,
+const relatedEvents = events.filter(ev =>
+  ev.location && ev.location.includes(loc.name)
+);
+
+// get first event discipline (if exists)
+const discipline = relatedEvents.length > 0 ? relatedEvents[0].discipline : null;
+const color = getDisciplineColor(discipline);
+
+const marker = new google.maps.Marker({
+  position: { lat: loc.lat, lng: loc.lng },
+  map,
+  title: loc.name,
   icon: {
     path: google.maps.SymbolPath.CIRCLE,
     scale: hasUpcoming ? 10 : 6,
-    fillColor: hasUpcoming ? "#CC5500" : "#ffd100",
+    fillColor: hasUpcoming ? "#CC5500" : color,
     fillOpacity: 1,
-    strokeWeight: hasUpcoming ? 2 : 1,
+    strokeWeight: 1,
     strokeColor: "#000"
   }
+});
 });
 if (hasUpcoming) {
   // subtle bounce once
