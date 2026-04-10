@@ -94,7 +94,7 @@ input, select, textarea { width:100%; margin-bottom:10px; padding:8px; border:no
 <span id="monthLabel"></span>
 <button onclick="changeMonth(1)">➡</button>
 </div>
-
+<div id="weekEvents" style="margin-bottom:20px;"></div>
 <div class="calendar" id="calendar"></div>
 
 <h2>Submit Event</h2>
@@ -218,9 +218,67 @@ let currentDate = new Date();
 db.collection("events").onSnapshot(snapshot => {
   events = [];
   snapshot.forEach(doc => events.push(doc.data()));
+function isThisWeek(dateString) {
+  const today = new Date();
+  today.setHours(0,0,0,0);
 
-  generateCalendar();
+  const endDate = new Date(today);
+  endDate.setDate(today.getDate() + 7);
 
+  const eventDate = new Date(dateString);
+
+  return eventDate >= today && eventDate <= endDate;
+}
+function renderWeekEvents() {
+  const container = document.getElementById("weekEvents");
+
+  const upcoming = events.filter(ev => isThisWeek(ev.date));
+
+  if (upcoming.length === 0) {
+    container.innerHTML = "";
+    return;
+  }
+
+  // sort by date
+  upcoming.sort((a, b) => new Date(a.date) - new Date(b.date));
+
+  let html = `
+    <div style="background:#1a1a1a; padding:15px; border-radius:10px; border-left:5px solid #CC5500;">
+      <h2 style="margin-top:0; color:#CC5500;">🔥 Next 7 Days</h2>
+  `;
+
+  upcoming.forEach((ev, i) => {
+    html += `
+      <div id="week-${i}" style="margin-bottom:10px; cursor:pointer;">
+        <strong>${ev.name}</strong><br>
+        <span style="font-size:12px; color:#ccc;">
+          ${ev.location} • ${ev.date}
+        </span>
+      </div>
+    `;
+  });
+
+  html += "</div>";
+
+  container.innerHTML = html;
+
+  // attach click handlers safely
+  setTimeout(() => {
+    upcoming.forEach((ev, i) => {
+      const el = document.getElementById(`week-${i}`);
+      if (el) {
+        el.onclick = () => {
+          showPopup(ev);
+          highlightLocation(ev.location);
+        };
+      }
+    });
+  }, 100);
+}
+  
+generateCalendar();
+renderWeekEvents();
+  
   // 🔥 refresh map markers
   if (typeof initMap === "function") {
     initMap();
