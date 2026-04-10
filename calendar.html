@@ -218,8 +218,17 @@ let currentDate = new Date();
 db.collection("events").onSnapshot(snapshot => {
   events = [];
   snapshot.forEach(doc => events.push(doc.data()));
+
   generateCalendar();
+
+  // 🔥 refresh map markers
+  if (typeof initMap === "function") {
+    initMap();
+  }
 });
+  if (hasUpcoming) {
+  marker.setAnimation(google.maps.Animation.DROP);
+}
 function isFutureEvent(dateString) {
   const today = new Date();
   today.setHours(0,0,0,0);
@@ -227,6 +236,17 @@ function isFutureEvent(dateString) {
   const eventDate = new Date(dateString);
 
   return eventDate >= today;
+}
+  function isWithinNext7Days(dateString) {
+  const today = new Date();
+  today.setHours(0,0,0,0);
+
+  const eventDate = new Date(dateString);
+
+  const diffTime = eventDate - today;
+  const diffDays = diffTime / (1000 * 60 * 60 * 24);
+
+  return diffDays >= 0 && diffDays <= 7;
 }
 function generateCalendar(){
   const cal = document.getElementById('calendar');
@@ -410,19 +430,27 @@ const locations = [
 
 locations.forEach(loc => {
 
-  const marker = new google.maps.Marker({
-    position: { lat: loc.lat, lng: loc.lng },
-    map,
-    title: loc.name,
-    icon: {
-      path: google.maps.SymbolPath.CIRCLE,
-      scale: 6,
-      fillColor: "#ffd100",
-      fillOpacity: 1,
-      strokeWeight: 1,
-      strokeColor: "#000"
-    }
-  });
+// Check if this track has an event within 7 days
+const hasUpcoming = events.some(ev =>
+  ev.location &&
+  ev.location.includes(loc.name) &&
+  isWithinNext7Days(ev.date)
+);
+
+// Change marker appearance
+const marker = new google.maps.Marker({
+  position: { lat: loc.lat, lng: loc.lng },
+  map,
+  title: loc.name,
+  icon: {
+    path: google.maps.SymbolPath.CIRCLE,
+    scale: hasUpcoming ? 10 : 6, // bigger if active
+    fillColor: hasUpcoming ? "#00ffcc" : "#ffd100", // teal highlight
+    fillOpacity: 1,
+    strokeWeight: hasUpcoming ? 2 : 1,
+    strokeColor: "#000"
+  }
+});
 
   const info = new google.maps.InfoWindow({
     content: `
