@@ -239,29 +239,24 @@ function renderWeekEvents() {
     return;
   }
 
-  // sort by date
   upcoming.sort((a, b) => new Date(a.date) - new Date(b.date));
 
   let html = `
     <div style="background:#1a1a1a; padding:15px; border-radius:10px; border-left:5px solid #CC5500;">
-      <h2 style="margin-top:0; color:#CC5500;">🏁 Next 7 Days 🏁</h2>
+      <h2 style="margin-top:0; color:#CC5500;">🔥 Next 7 Days</h2>
   `;
 
   upcoming.forEach((ev, i) => {
+
+    const formatted = formatEventDate(ev.date);
+    const parts = formatted.split(" - ");
+
     html += `
       <div id="week-${i}" style="margin-bottom:10px; cursor:pointer;">
         <strong>${ev.name}</strong><br>
-const formatted = formatEventDate(ev.date);
-const parts = formatted.split(" - ");
-
-html += `
-  <div id="week-${i}" style="margin-bottom:10px; cursor:pointer;">
-    <strong>${ev.name}</strong><br>
-    <span style="font-size:12px; color:#ccc;">
-      ${ev.location} • ${parts[0]} - <strong>${parts[1]}</strong>
-    </span>
-  </div>
-`;
+        <span style="font-size:12px; color:#ccc;">
+          ${ev.location} • ${parts[0]} - <strong>${parts[1]}</strong>
+        </span>
       </div>
     `;
   });
@@ -282,8 +277,7 @@ html += `
       }
     });
   }, 100);
-}
-  
+} 
 generateCalendar();
 renderWeekEvents();
   
