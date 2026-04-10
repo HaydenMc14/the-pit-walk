@@ -444,14 +444,44 @@ const marker = new google.maps.Marker({
   title: loc.name,
   icon: {
     path: google.maps.SymbolPath.CIRCLE,
-    scale: hasUpcoming ? 10 : 6, // bigger if active
-    fillColor: hasUpcoming ? "#00ffcc" : "#ffd100", // teal highlight
+    scale: hasUpcoming ? 10 : 6,
+    fillColor: hasUpcoming ? "#CC5500" : "#ffd100",
     fillOpacity: 1,
     strokeWeight: hasUpcoming ? 2 : 1,
     strokeColor: "#000"
   }
 });
+if (hasUpcoming) {
+  // subtle bounce once
+  marker.setAnimation(google.maps.Animation.DROP);
 
+  // glow effect via pulsing shadow circle
+  const glowCircle = new google.maps.Circle({
+    strokeColor: "#CC5500",
+    strokeOpacity: 0,
+    strokeWeight: 0,
+    fillColor: "#CC5500",
+    fillOpacity: 0.25,
+    map,
+    center: marker.getPosition(),
+    radius: 5000 // size of glow (adjust if needed)
+  });
+
+  // animate glow
+  let growing = true;
+  let size = 5000;
+
+  setInterval(() => {
+    if (growing) {
+      size += 500;
+      if (size > 9000) growing = false;
+    } else {
+      size -= 500;
+      if (size < 5000) growing = true;
+    }
+    glowCircle.setRadius(size);
+  }, 200);
+}
   const info = new google.maps.InfoWindow({
     content: `
       <div style="color:black; font-family:Arial;">
