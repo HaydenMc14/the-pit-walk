@@ -162,6 +162,7 @@ function render() {
 
     let proj1 = project(p1, cameraX, cameraY, cameraZ);
     let proj2 = project(p2, cameraX, cameraY, cameraZ);
+    if (p1.z <= cameraZ || p2.z <= cameraZ) continue;
 // scale based on distance
 let scale = proj1.w / (roadWidth * canvas.width / 2);
 
