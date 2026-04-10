@@ -1,0 +1,119 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>Admin Panel - The Pit Walk</title>
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+
+<style>
+body {
+  font-family: Arial;
+  background: #0d0d0d;
+  color: #fff;
+  margin: 0;
+  padding: 20px;
+}
+
+h1 {
+  color: #ffd100;
+}
+
+.event {
+  background: #1a1a1a;
+  padding: 15px;
+  margin-bottom: 15px;
+  border-radius: 8px;
+  border-left: 5px solid #ffd100;
+}
+
+button {
+  margin-right: 10px;
+  padding: 8px 12px;
+  border: none;
+  cursor: pointer;
+  font-weight: bold;
+}
+
+.approve {
+  background: #2ecc71;
+  color: #000;
+}
+
+.delete {
+  background: #e74c3c;
+  color: #fff;
+}
+</style>
+</head>
+
+<body>
+
+<h1>Pending Events</h1>
+
+<div id="pendingList"></div>
+
+<!-- Firebase -->
+<script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-app.js"></script>
+<script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-firestore.js"></script>
+
+<script>
+const firebaseConfig = {
+  apiKey: "AIzaSyCD2ZrGovFh1EkHIXp943WHAV8kcGW8-UY",
+  authDomain: "pit-walk.firebaseapp.com",
+  projectId: "pit-walk",
+  storageBucket: "pit-walk.firebasestorage.app",
+  messagingSenderId: "620584957013",
+  appId: "1:620584957013:web:24171e30ad7614573690dc"
+};
+
+firebase.initializeApp(firebaseConfig);
+const db = firebase.firestore();
+
+const container = document.getElementById("pendingList");
+
+// Load pending events
+db.collection("pendingEvents").onSnapshot(snapshot => {
+  container.innerHTML = "";
+
+  snapshot.forEach(doc => {
+    const ev = doc.data();
+    const id = doc.id;
+
+    const div = document.createElement("div");
+    div.className = "event";
+
+    div.innerHTML = `
+      <strong>${ev.name}</strong><br>
+      ${ev.date}<br>
+      ${ev.location}<br>
+      ${ev.discipline}<br><br>
+
+      <button class="approve" onclick="approveEvent('${id}')">Approve</button>
+      <button class="delete" onclick="deleteEvent('${id}')">Delete</button>
+    `;
+
+    container.appendChild(div);
+  });
+});
+
+// Approve event
+function approveEvent(id) {
+  db.collection("pendingEvents").doc(id).get().then(doc => {
+    const data = doc.data();
+
+    db.collection("events").add(data).then(() => {
+      db.collection("pendingEvents").doc(id).delete();
+    });
+  });
+}
+
+// Delete event
+function deleteEvent(id) {
+  if (!confirm("Delete this event?")) return;
+
+  db.collection("pendingEvents").doc(id).delete();
+}
+</script>
+
+</body>
+</html>
