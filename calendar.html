@@ -251,9 +251,17 @@ function renderWeekEvents() {
     html += `
       <div id="week-${i}" style="margin-bottom:10px; cursor:pointer;">
         <strong>${ev.name}</strong><br>
-<span style="font-size:12px; color:#ccc;">
-  ${ev.location} • ${formatEventDate(ev.date)}
-</span>
+const formatted = formatEventDate(ev.date);
+const parts = formatted.split(" - ");
+
+html += `
+  <div id="week-${i}" style="margin-bottom:10px; cursor:pointer;">
+    <strong>${ev.name}</strong><br>
+    <span style="font-size:12px; color:#ccc;">
+      ${ev.location} • ${parts[0]} - <strong>${parts[1]}</strong>
+    </span>
+  </div>
+`;
       </div>
     `;
   });
