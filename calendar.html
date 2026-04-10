@@ -425,10 +425,49 @@ locations.forEach(loc => {
     `
   });
 
-  marker.addListener("click", () => {
-    info.open(map, marker);
+marker.addListener("click", () => {
+
+  const relatedEvents = events.filter(ev => {
+    return ev.location && ev.location.includes(loc.name);
   });
 
+  let content = `
+    <div style="color:black; font-family:Arial;">
+      <strong>${loc.name}</strong><br>
+      📍 ${loc.distance}<br>
+      🏎️ ${loc.disciplines}
+  `;
+
+  if (relatedEvents.length > 0) {
+    content += "<br><strong>Upcoming Events:</strong><ul>";
+
+    relatedEvents.forEach((ev, i) => {
+      content += `<li id="event-${loc.name}-${i}" style="cursor:pointer;color:#ffd100;">${ev.name}</li>`;
+    });
+
+    content += "</ul>";
+  } else {
+    content += "<br><em>No upcoming events</em>";
+  }
+
+  content += "</div>";
+
+  const dynamicInfo = new google.maps.InfoWindow({ content });
+  dynamicInfo.open(map, marker);
+
+  // attach click handlers safely
+  setTimeout(() => {
+    relatedEvents.forEach((ev, i) => {
+      const el = document.getElementById(`event-${loc.name}-${i}`);
+      if (el) {
+        el.onclick = () => {
+          showPopup(ev);
+          highlightLocation(ev.location);
+        };
+      }
+    });
+  }, 100);
+});
   markers[loc.name] = marker;
 });
 }
