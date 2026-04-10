@@ -117,7 +117,12 @@ input, select, textarea { width:100%; margin-bottom:10px; padding:8px; border:no
 
 <h2>Submit Event</h2>
 
-<form onsubmit="submitEvent(event)">
+<button onclick="toggleForm()" style="margin-top:20px; padding:10px; background:#ffd100; border:none; cursor:pointer;">
+  Submit an Event
+</button>
+
+<div id="eventForm" style="display:none;">
+  <form onsubmit="submitEvent(event)">
 <input type="text" id="name" placeholder="Event Name" required>
 <input type="date" id="date" required>
 
@@ -198,6 +203,7 @@ input, select, textarea { width:100%; margin-bottom:10px; padding:8px; border:no
 
 <button type="submit">Submit</button>
 </form>
+  </div>
 <div id="map"></div>
 </section>
 
@@ -356,6 +362,12 @@ function getDisciplineColor(discipline) {
 
   return "#ffffff"; // default
 }
+function toggleForm() {
+  const form = document.getElementById("eventForm");
+  form.style.display = form.style.display === "none" ? "block" : "none";
+}
+
+function generateCalendar(){  
 function generateCalendar(){
   
   const cal = document.getElementById('calendar');
@@ -427,7 +439,7 @@ function changeMonth(dir){
 function submitEvent(e){
   e.preventDefault();
 
-  db.collection("events").add({
+db.collection("pendingEvents").add({
     name: document.getElementById('name').value,
     date: document.getElementById('date').value,
     location: document.getElementById('location').value,
@@ -436,7 +448,7 @@ function submitEvent(e){
     link: document.getElementById('link').value
   });
 
-  alert("Event submitted!");
+  alert("Event submitted for approval!");
 }
 
 function showPopup(ev){
