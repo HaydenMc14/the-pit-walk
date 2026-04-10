@@ -14,38 +14,109 @@ const ctx = canvas.getContext("2d");
 canvas.width = window.innerWidth;
 canvas.height = window.innerHeight;
 
-let playerX = canvas.width / 2;
+let playerX = 0;
+let speed = 0;
+let maxSpeed = 10;
+let roadWidth = 2000;
+let segmentLength = 200;
+let cameraHeight = 1000;
+let cameraDepth = 1 / Math.tan((90/2) * Math.PI/180);
+let position = 0;
 
-document.addEventListener("keydown", (e) => {
-  if (e.key === "ArrowLeft") playerX -= 20;
-  if (e.key === "ArrowRight") playerX += 20;
-});
+let keys = {};
 
-function drawRoad() {
-  for (let i = 0; i < 50; i++) {
-    let width = i * 20;
-    ctx.fillStyle = i % 2 === 0 ? "#444" : "#555";
-    ctx.fillRect(
-      canvas.width/2 - width/2,
-      canvas.height - i * 10,
-      width,
-      10
-    );
-  }
+document.addEventListener("keydown", e => keys[e.key] = true);
+document.addEventListener("keyup", e => keys[e.key] = false);
+
+// Road definition
+let road = [];
+for (let i = 0; i < 500; i++) {
+  road.push({
+    z: i * segmentLength,
+    curve: Math.sin(i * 0.05) * 2 // curves!
+  });
 }
 
-function drawCar() {
+function project(p, cameraX, cameraY, cameraZ) {
+  let scale = cameraDepth / (p.z - cameraZ);
+  return {
+    x: (1 + scale * (p.x - cameraX)) * canvas.width / 2,
+    y: (1 - scale * (p.y - cameraY)) * canvas.height / 2,
+    w: scale * roadWidth * canvas.width / 2
+  };
+}
+
+function drawSegment(p1, p2) {
+  ctx.fillStyle = "#444";
+  ctx.beginPath();
+  ctx.moveTo(p1.x - p1.w, p1.y);
+  ctx.lineTo(p1.x + p1.w, p1.y);
+  ctx.lineTo(p2.x + p2.w, p2.y);
+  ctx.lineTo(p2.x - p2.w, p2.y);
+  ctx.closePath();
+  ctx.fill();
+}
+
+function update() {
+  // Controls
+  if (keys["ArrowUp"]) speed += 0.2;
+  if (keys["ArrowDown"]) speed -= 0.3;
+
+  speed = Math.max(0, Math.min(maxSpeed, speed));
+
+  if (keys["ArrowLeft"]) playerX -= 0.05 * speed;
+  if (keys["ArrowRight"]) playerX += 0.05 * speed;
+
+  position += speed;
+}
+
+function render() {
+  ctx.fillStyle = "#87CEEB"; // sky
+  ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+  let baseSegment = Math.floor(position / segmentLength);
+  let basePercent = (position % segmentLength) / segmentLength;
+
+  let cameraX = playerX * roadWidth;
+  let cameraY = cameraHeight;
+  let cameraZ = position;
+
+  let maxY = canvas.height;
+
+  for (let i = 0; i < 300; i++) {
+    let curr = road[(baseSegment + i) % road.length];
+    let next = road[(baseSegment + i + 1) % road.length];
+
+    let p1 = {
+      x: curr.curve * roadWidth,
+      y: 0,
+      z: curr.z - basePercent * segmentLength
+    };
+
+    let p2 = {
+      x: next.curve * roadWidth,
+      y: 0,
+      z: next.z - basePercent * segmentLength
+    };
+
+    let proj1 = project(p1, cameraX, cameraY, cameraZ);
+    let proj2 = project(p2, cameraX, cameraY, cameraZ);
+
+    if (proj1.y >= maxY) continue;
+
+    drawSegment(proj1, proj2);
+
+    maxY = proj1.y;
+  }
+
+  // Player car
   ctx.fillStyle = "#ffd100";
-  ctx.fillRect(playerX - 25, canvas.height - 100, 50, 80);
+  ctx.fillRect(canvas.width/2 - 25 + playerX * 200, canvas.height - 100, 50, 80);
 }
 
 function loop() {
-  ctx.fillStyle = "black";
-  ctx.fillRect(0, 0, canvas.width, canvas.height);
-
-  drawRoad();
-  drawCar();
-
+  update();
+  render();
   requestAnimationFrame(loop);
 }
 
