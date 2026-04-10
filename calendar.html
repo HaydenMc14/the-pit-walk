@@ -220,7 +220,14 @@ db.collection("events").onSnapshot(snapshot => {
   snapshot.forEach(doc => events.push(doc.data()));
   generateCalendar();
 });
+function isFutureEvent(dateString) {
+  const today = new Date();
+  today.setHours(0,0,0,0);
 
+  const eventDate = new Date(dateString);
+
+  return eventDate >= today;
+}
 function generateCalendar(){
   const cal = document.getElementById('calendar');
   cal.innerHTML = "";
@@ -255,7 +262,7 @@ function generateCalendar(){
     let fullDate=`${year}-${String(month+1).padStart(2,'0')}-${String(d).padStart(2,'0')}`;
 
 events.forEach(ev=>{
-  if(ev.date===fullDate){
+  if(ev.date === fullDate && isFutureEvent(ev.date)){
     let e=document.createElement('div');
     e.className='event';
 
@@ -429,10 +436,12 @@ locations.forEach(loc => {
 
 marker.addListener("click", () => {
 
-  const relatedEvents = events.filter(ev => {
-    return ev.location && ev.location.includes(loc.name);
-  });
-
+const relatedEvents = events.filter(ev => {
+  return ev.location &&
+         ev.location.includes(loc.name) &&
+         isFutureEvent(ev.date);
+});
+relatedEvents.sort((a, b) => new Date(a.date) - new Date(b.date));
   let content = `
     <div style="color:black; font-family:Arial;">
       <strong>${loc.name}</strong><br>
