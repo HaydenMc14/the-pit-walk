@@ -1,0 +1,56 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <title>The Pit Walk Racer</title>
+</head>
+<body style="margin:0; overflow:hidden; background:black;">
+
+<canvas id="game"></canvas>
+
+<script>
+const canvas = document.getElementById("game");
+const ctx = canvas.getContext("2d");
+
+canvas.width = window.innerWidth;
+canvas.height = window.innerHeight;
+
+let playerX = canvas.width / 2;
+
+document.addEventListener("keydown", (e) => {
+  if (e.key === "ArrowLeft") playerX -= 20;
+  if (e.key === "ArrowRight") playerX += 20;
+});
+
+function drawRoad() {
+  for (let i = 0; i < 50; i++) {
+    let width = i * 20;
+    ctx.fillStyle = i % 2 === 0 ? "#444" : "#555";
+    ctx.fillRect(
+      canvas.width/2 - width/2,
+      canvas.height - i * 10,
+      width,
+      10
+    );
+  }
+}
+
+function drawCar() {
+  ctx.fillStyle = "#ffd100";
+  ctx.fillRect(playerX - 25, canvas.height - 100, 50, 80);
+}
+
+function loop() {
+  ctx.fillStyle = "black";
+  ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+  drawRoad();
+  drawCar();
+
+  requestAnimationFrame(loop);
+}
+
+loop();
+</script>
+
+</body>
+</html>
