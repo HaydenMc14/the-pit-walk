@@ -541,9 +541,16 @@ const relatedEvents = events.filter(ev =>
   ev.location && ev.location.includes(loc.name)
 );
 
-// get first event discipline (if exists)
-const discipline = relatedEvents.length > 0 ? relatedEvents[0].discipline : null;
+// Determine discipline colour
+let discipline = null;
+if (relatedEvents.length > 0) {
+  discipline = relatedEvents[0].discipline;
+}
+
 const color = getDisciplineColor(discipline);
+
+// Check if upcoming (7 days)
+const hasUpcoming = relatedEvents.some(ev => isWithinNext7Days(ev.date));
 
 const marker = new google.maps.Marker({
   position: { lat: loc.lat, lng: loc.lng },
