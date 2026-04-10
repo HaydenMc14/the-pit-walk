@@ -1,4 +1,4 @@
-let infoWindow;
+
 <!DOCTYPE html>
 <html lang="en">
 <head>
@@ -443,7 +443,8 @@ function closePopup(){
 <script>
 let map;
 let markers = {};
-
+let infoWindow;
+  
 function initMap() {
   infoWindow = new google.maps.InfoWindow();
   map = new google.maps.Map(document.getElementById("map"), {
@@ -525,132 +526,104 @@ const locations = [
 
 locations.forEach(loc => {
 
-// Check if this track has an event within 7 days
-const hasUpcoming = events.some(ev =>
-  ev.location &&
-  ev.location.includes(loc.name) &&
-  isWithinNext7Days(ev.date)
-);
+  const relatedEvents = events.filter(ev =>
+    ev.location && ev.location.includes(loc.name)
+  );
 
-// Change marker appearance
-const marker = new google.maps.Marker({
-  position: { lat: loc.lat, lng: loc.lng },
-  map,
-  title: loc.name,
-const relatedEvents = events.filter(ev =>
-  ev.location && ev.location.includes(loc.name)
-);
-
-// Determine discipline colour
-let discipline = null;
-if (relatedEvents.length > 0) {
-  discipline = relatedEvents[0].discipline;
-}
-
-const color = getDisciplineColor(discipline);
-
-// Check if upcoming (7 days)
-const hasUpcoming = relatedEvents.some(ev => isWithinNext7Days(ev.date));
-
-const marker = new google.maps.Marker({
-  position: { lat: loc.lat, lng: loc.lng },
-  map,
-  title: loc.name,
-  icon: {
-    path: google.maps.SymbolPath.CIRCLE,
-    scale: hasUpcoming ? 10 : 6,
-    fillColor: hasUpcoming ? "#CC5500" : color,
-    fillOpacity: 1,
-    strokeWeight: 1,
-    strokeColor: "#000"
+  let discipline = null;
+  if (relatedEvents.length > 0) {
+    discipline = relatedEvents[0].discipline;
   }
-});
-if (hasUpcoming) {
-  // subtle bounce once
-  marker.setAnimation(google.maps.Animation.DROP);
 
-  // glow effect via pulsing shadow circle
-  const glowCircle = new google.maps.Circle({
-    strokeColor: "#CC5500",
-    strokeOpacity: 0,
-    strokeWeight: 0,
-    fillColor: "#CC5500",
-    fillOpacity: 0.25,
+  const color = getDisciplineColor(discipline);
+
+  const hasUpcoming = relatedEvents.some(ev =>
+    isWithinNext7Days(ev.date)
+  );
+
+  const marker = new google.maps.Marker({
+    position: { lat: loc.lat, lng: loc.lng },
     map,
-    center: marker.getPosition(),
-    radius: 5000 // size of glow (adjust if needed)
+    title: loc.name,
+    icon: {
+      path: google.maps.SymbolPath.CIRCLE,
+      scale: hasUpcoming ? 10 : 6,
+      fillColor: hasUpcoming ? "#CC5500" : color,
+      fillOpacity: 1,
+      strokeWeight: 1,
+      strokeColor: "#000"
+    }
   });
 
-  // animate glow
-  let growing = true;
-  let size = 5000;
+  // Glow effect
+  if (hasUpcoming) {
+    const glowCircle = new google.maps.Circle({
+      strokeOpacity: 0,
+      fillColor: "#CC5500",
+      fillOpacity: 0.25,
+      map,
+      center: marker.getPosition(),
+      radius: 5000
+    });
 
-  setInterval(() => {
-    if (growing) {
-      size += 500;
+    let growing = true;
+    let size = 5000;
+
+    setInterval(() => {
+      size += growing ? 500 : -500;
       if (size > 9000) growing = false;
-    } else {
-      size -= 500;
       if (size < 5000) growing = true;
-    }
-    glowCircle.setRadius(size);
-  }, 200);
-}
-  const info = new google.maps.InfoWindow({
-    content: `
-      <div style="color:black; font-family:Arial;">
+      glowCircle.setRadius(size);
+    }, 200);
+  }
+
+  marker.addListener("click", () => {
+
+    const relatedEvents = events.filter(ev =>
+      ev.location &&
+      ev.location.includes(loc.name) &&
+      isFutureEvent(ev.date)
+    );
+
+    relatedEvents.sort((a, b) => new Date(a.date) - new Date(b.date));
+
+    let content = `
+      <div style="color:black;">
         <strong>${loc.name}</strong><br>
         📍 ${loc.distance}<br>
         🏎️ ${loc.disciplines}
-      </div>
-    `
+    `;
+
+    if (relatedEvents.length > 0) {
+      content += "<br><strong>Upcoming Events:</strong><ul>";
+
+      relatedEvents.forEach((ev, i) => {
+        content += `<li id="event-${loc.name}-${i}" style="cursor:pointer;color:black;">${ev.name}</li>`;
+      });
+
+      content += "</ul>";
+    } else {
+      content += "<br><em>No upcoming events</em>";
+    }
+
+    content += "</div>";
+
+    infoWindow.setContent(content);
+    infoWindow.open(map, marker);
+
+    setTimeout(() => {
+      relatedEvents.forEach((ev, i) => {
+        const el = document.getElementById(`event-${loc.name}-${i}`);
+        if (el) {
+          el.onclick = () => {
+            showPopup(ev);
+            highlightLocation(ev.location);
+          };
+        }
+      });
+    }, 100);
   });
 
-marker.addListener("click", () => {
-
-const relatedEvents = events.filter(ev => {
-  return ev.location &&
-         ev.location.includes(loc.name) &&
-         isFutureEvent(ev.date);
-});
-relatedEvents.sort((a, b) => new Date(a.date) - new Date(b.date));
-  let content = `
-    <div style="color:black; font-family:Arial;">
-      <strong>${loc.name}</strong><br>
-      📍 ${loc.distance}<br>
-      🏎️ ${loc.disciplines}
-  `;
-
-  if (relatedEvents.length > 0) {
-    content += "<br><strong>Upcoming Events:</strong><ul>";
-
-    relatedEvents.forEach((ev, i) => {
-content += `<li id="event-${loc.name}-${i}" style="cursor:pointer;color:black;">${ev.name}</li>`;
-    });
-
-    content += "</ul>";
-  } else {
-    content += "<br><em>No upcoming events</em>";
-  }
-
-  content += "</div>";
-
-infoWindow.setContent(content);
-infoWindow.open(map, marker);
-
-  // attach click handlers safely
-  setTimeout(() => {
-    relatedEvents.forEach((ev, i) => {
-      const el = document.getElementById(`event-${loc.name}-${i}`);
-      if (el) {
-        el.onclick = () => {
-          showPopup(ev);
-          highlightLocation(ev.location);
-        };
-      }
-    });
-  }, 100);
-});
   markers[loc.name] = marker;
 });
 }
