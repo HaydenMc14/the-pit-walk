@@ -1,3 +1,4 @@
+let infoWindow;
 <!DOCTYPE html>
 <html lang="en">
 <head>
@@ -322,6 +323,7 @@ let map;
 let markers = {};
 
 function initMap() {
+  infoWindow = new google.maps.InfoWindow();
   map = new google.maps.Map(document.getElementById("map"), {
     zoom: 6,
     center: { lat: -34.5, lng: 138.5 },
@@ -452,8 +454,8 @@ content += `<li id="event-${loc.name}-${i}" style="cursor:pointer;color:black;">
 
   content += "</div>";
 
-  const dynamicInfo = new google.maps.InfoWindow({ content });
-  dynamicInfo.open(map, marker);
+infoWindow.setContent(content);
+infoWindow.open(map, marker);
 
   // attach click handlers safely
   setTimeout(() => {
