@@ -251,9 +251,9 @@ function renderWeekEvents() {
     html += `
       <div id="week-${i}" style="margin-bottom:10px; cursor:pointer;">
         <strong>${ev.name}</strong><br>
-        <span style="font-size:12px; color:#ccc;">
-          ${ev.location} • ${ev.date}
-        </span>
+<span style="font-size:12px; color:#ccc;">
+  ${ev.location} • ${formatEventDate(ev.date)}
+</span>
       </div>
     `;
   });
@@ -306,7 +306,22 @@ function isFutureEvent(dateString) {
 
   return diffDays >= 0 && diffDays <= 7;
 }
+
+function formatEventDate(dateString) {
+  const date = new Date(dateString);
+
+  const day = String(date.getDate()).padStart(2, '0');
+  const month = String(date.getMonth() + 1).padStart(2, '0');
+  const year = date.getFullYear();
+
+  const days = ["SUNDAY","MONDAY","TUESDAY","WEDNESDAY","THURSDAY","FRIDAY","SATURDAY"];
+  const dayName = days[date.getDay()];
+
+  return `${day}/${month}/${year} - ${dayName}`;
+}
+
 function generateCalendar(){
+  
   const cal = document.getElementById('calendar');
   cal.innerHTML = "";
 
