@@ -127,6 +127,11 @@ function drawRoad(x, y, width, segment, index) {
 
   // RIGHT RUMBLE
   ctx.fillRect(x + width / 2, y, rumble, 12);
+
+  // GRASS
+ctx.fillStyle = "green";
+ctx.fillRect(x - width / 2 - rumble - 20, y, 20, 12);
+ctx.fillRect(x + width / 2 + rumble, y, 20, 12);
 }
 
 // ============================================
