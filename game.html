@@ -187,7 +187,35 @@ function update() {
 
 // ===== CAMERA =====
 let camOffset = 0;
+function drawBackground(curveShift) {
 
+  // ===== SKY GRADIENT =====
+  let sky = ctx.createLinearGradient(0, 0, 0, canvas.height);
+  sky.addColorStop(0, "#4da6ff");
+  sky.addColorStop(1, "#87CEEB");
+
+  ctx.fillStyle = sky;
+  ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+  // ===== MOUNTAINS (PARALLAX) =====
+  ctx.fillStyle = "#2c3e50";
+
+  let baseY = canvas.height * 0.4;
+  let offset = curveShift * 0.3; // parallax movement
+
+  ctx.beginPath();
+  ctx.moveTo(0, baseY);
+
+  for (let i = 0; i < canvas.width; i += 100) {
+    let height = Math.sin(i * 0.01 + offset) * 50 + baseY;
+    ctx.lineTo(i, height);
+  }
+
+  ctx.lineTo(canvas.width, canvas.height);
+  ctx.lineTo(0, canvas.height);
+  ctx.closePath();
+  ctx.fill();
+}
 // ===== RENDER =====
 function render() {
 
@@ -201,8 +229,16 @@ function render() {
     return;
   }
 
-  ctx.fillStyle = "#87CEEB";
-  ctx.fillRect(0,0,canvas.width,canvas.height);
+// calculate curve for parallax
+let base = Math.floor(position / segmentLength);
+
+let curveSum = 0;
+for (let i = 0; i < 20; i++) {
+  curveSum += road[(base + i) % road.length].curve;
+}
+
+// draw sky + mountains
+drawBackground(curveSum);
 
   let base = Math.floor(position / segmentLength);
   let percent = (position % segmentLength) / segmentLength;
@@ -211,7 +247,17 @@ function render() {
   for (let i=0;i<20;i++) {
     curveSum += road[(base+i)%road.length].curve;
   }
+ctx.fillStyle = "#1a252f";
+ctx.beginPath();
 
+for (let i = 0; i < canvas.width; i += 120) {
+  let height = Math.sin(i * 0.008 + offset * 0.5) * 30 + baseY + 50;
+  ctx.lineTo(i, height);
+}
+
+ctx.lineTo(canvas.width, canvas.height);
+ctx.lineTo(0, canvas.height);
+ctx.fill();
   camOffset += (curveSum * 50 - camOffset) * 0.1;
 
   let cameraX = playerX * roadWidth + camOffset;
