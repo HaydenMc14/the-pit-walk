@@ -52,7 +52,12 @@ function update() {
   // --------------------------------
   // STEERING CONTROL
   // --------------------------------
-  playerX += steering * 0.03;
+let segmentIndex = Math.floor(position % track.length);
+let segment = track[segmentIndex];
+
+let gripFactor = segment.grip;
+
+playerX += steering * 0.05 * gripFactor;
 
   // Clamp so player can't go too far off road
   playerX = Math.max(-2, Math.min(2, playerX));
@@ -67,7 +72,7 @@ function update() {
   // CURVE EFFECT ON PLAYER
   // This is the magic "cornering feel"
   // --------------------------------
-  playerX -= segment.curve * speed * 0.5;
+playerX -= segment.curve * speed * (2 - gripFactor);
 }
 
 // ============================================
@@ -85,12 +90,13 @@ function render() {
     let segment = track[segmentIndex];
 
     // Curve accumulation (world bending)
-    baseX += segment.curve * 20;
+baseX += segment.curve * 20 + segment.tilt * 10;
 
-    let y = canvas.height - i * 15;
+let elevationOffset = segment.elevation * 200;
+let y = canvas.height - i * 15 + elevationOffset;
 let width = 400 * segment.width * (1 - i / 50);
 
-    drawRoad(baseX - camX, y, width);
+drawRoad(baseX - camX, y, width, segment, i);
   }
 
   drawCar();
@@ -100,7 +106,22 @@ let width = 400 * segment.width * (1 - i / 50);
 // DRAW ROAD STRIP
 // ============================================
 
-function drawRoad(x, y, width) {
+function drawRoad(x, y, width, segment, index) {
+  let rumble = width * segment.rumbleWidth;
+
+  // Alternate rumble color
+  let rumbleColor = (Math.floor(index / segment.rumbleLength) % 2)
+    ? "red"
+    : "white";
+
+  // LEFT RUMBLE
+  ctx.fillStyle = rumbleColor;
+  ctx.fillRect(x - width / 2 - rumble, y, rumble, 10);
+
+  // RIGHT RUMBLE
+  ctx.fillRect(x + width / 2, y, rumble, 10);
+
+  // ROAD
   ctx.fillStyle = "#555";
   ctx.fillRect(x - width / 2, y, width, 10);
 }
