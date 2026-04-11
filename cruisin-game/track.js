@@ -1,35 +1,28 @@
 // ============================================
-// TRACK DATA
-// Each entry = one segment of road
+// RAW TRACK DEFINITION (your input)
 // ============================================
 
-const track = [
-const track = [
+const trackData = [
   { length: 200, curve: 0 },
   { length: 200, curve: 0.8 },
   { length: 200, curve: 0 },
   { length: 200, curve: -0.8 },
 ];
-  {
-    length: 200,
-    curve: 0,           // 0 = straight, negative = left, positive = right
-    elevation: 0,
-    tilt: 0,
-    width: 1,
-    grip: 1,
-    rumbleWidth: 0.1,
-    rumbleLength: 20
-  },
 
-  {
-    length: 300,
-    curve: 0.5,
-    elevation: 0.2,
-    tilt: 0.1,
-    width: 1,
-    grip: 0.8,
-    rumbleWidth: 0.15,
-    rumbleLength: 30
+// ============================================
+// GENERATED SEGMENTS (used by engine)
+// ============================================
+
+const track = [];
+
+const SEGMENT_LENGTH = 10;
+
+trackData.forEach(section => {
+  let segmentCount = section.length / SEGMENT_LENGTH;
+
+  for (let i = 0; i < segmentCount; i++) {
+    track.push({
+      curve: section.curve
+    });
   }
-
-];
+});
