@@ -16,7 +16,7 @@ canvas.height = window.innerHeight;
 
 let playerX = 0;
 let speed = 0;
-let maxSpeed = currentCar.maxSpeed;
+let maxSpeed = 10;
 let roadWidth = 2000;
 let segmentLength = 200;
 let cameraHeight = 1000;
@@ -68,11 +68,6 @@ document.addEventListener("keyup", e => keys[e.key] = false);
 // Road definition
 let road = tracks[0].build();
 let currentCar = cars[0];
-  road.push({
-    z: i * segmentLength,
-    curve: Math.sin(i * 0.05) * 2 // curves!
-  });
-}
 
 function project(p, cameraX, cameraY, cameraZ) {
   let scale = cameraDepth / (p.z - cameraZ);
@@ -134,7 +129,16 @@ function drawSegment(p1, p2, index) {
   ctx.lineTo(p2.x, p2.y);
   ctx.stroke();
 }
+function nextTrack() {
+  currentTrackIndex = (currentTrackIndex + 1) % tracks.length;
 
+  road = tracks[currentTrackIndex].build();
+  currentCar = cars[currentTrackIndex % cars.length];
+
+  position = 0;
+  trackTime = 0;
+  inTransition = false;
+}
 function update() {
 function nextTrack() {
   currentTrackIndex = (currentTrackIndex + 1) % tracks.length;
@@ -194,7 +198,7 @@ function drawSprite(x, y, scale, type) {
   }
 }
 function render() {
- if (inTransition) {
+if (inTransition) {
   ctx.fillStyle = "black";
   ctx.fillRect(0, 0, canvas.width, canvas.height);
 
@@ -207,6 +211,9 @@ function render() {
     canvas.width / 2,
     canvas.height / 2
   );
+
+  return;
+}
 
   return;
 ctx.fillStyle = "#fff";
@@ -281,6 +288,12 @@ function loop() {
     maxSpeed = currentCar.maxSpeed;;
   render();
   requestAnimationFrame(loop);
+  ctx.fillStyle = "#fff";
+ctx.font = "20px Arial";
+ctx.textAlign = "left";
+
+ctx.fillText("Track: " + tracks[currentTrackIndex].name, 20, 30);
+ctx.fillText("Time: " + Math.floor(trackTime), 20, 60);
 }
 
 loop();
