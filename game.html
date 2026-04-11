@@ -42,67 +42,76 @@ const tracks = [
 build: () => {
   let arr = [];
 
-  function addCurve(length, maxCurve) {
-    for (let i = 0; i < length; i++) {
-      let progress = i / length;
-      let curve = Math.sin(progress * Math.PI) * maxCurve;
+function addCurve(length, maxCurve, hill = 0, camber = 0) {
+  for (let i = 0; i < length; i++) {
+    let progress = i / length;
 
-      arr.push({
-        z: arr.length * segmentLength,
-        curve: curve,
-        y: 0
-      });
-    }
-  }
+    // smooth curve
+    let curve = Math.sin(progress * Math.PI) * maxCurve;
 
-  function addStraight(length) {
-    for (let i = 0; i < length; i++) {
-      arr.push({
-        z: arr.length * segmentLength,
-        curve: 0,
-        y: 0
-      });
-    }
+    // smooth hill (up then down)
+    let y = Math.sin(progress * Math.PI) * hill;
+
+    // camber follows curve shape
+    let tilt = Math.sin(progress * Math.PI) * camber;
+
+    arr.push({
+      z: arr.length * segmentLength,
+      curve: curve,
+      y: y,
+      tilt: tilt
+    });
   }
+}
+
+function addStraight(length, hill = 0) {
+  for (let i = 0; i < length; i++) {
+    arr.push({
+      z: arr.length * segmentLength,
+      curve: 0,
+      y: hill,
+      tilt: 0
+    });
+  }
+}
 
   // ===== START =====
-  addStraight(40);
+addStraight(40);
 
-  // gentle right
-  addCurve(40, 1.5);
+// gentle right (slight camber)
+addCurve(40, 1.5, 0, 0.3);
 
-  // wide left hairpin
-  addCurve(60, -3);
+// wide left hairpin (banked)
+addCurve(60, -3, 0, -0.5);
 
-  addStraight(20);
+addStraight(40);
 
-  // right hairpin
-  addCurve(50, 3);
+// right hairpin
+addCurve(50, 3, 0, 0.5);
 
-  addStraight(40);
+addStraight(60);
 
-  // gentle right
-  addCurve(30, 1.5);
+// Turn 4 — gentle rise then fall
+addCurve(40, 1.5, 200, 0.2);
 
-  addStraight(20);
+addStraight(40);
 
-  // tight right
-  addCurve(40, 4.5);
+// tight right
+addCurve(40, 4.5, 0, 0.6);
 
-  // medium left
-  addCurve(40, -2);
+// flowing section
+addCurve(40, -2, 0, -0.3);
 
-  addStraight(40);
+addStraight(60);
 
-  // right hairpin
-  addCurve(50, 3);
+// right hairpin
+addCurve(50, 3, 0, 0.5);
 
-  // left hairpin
-  addCurve(50, -3);
+// left hairpin
+addCurve(50, -3, 0, -0.5);
 
-  // final right
-  addCurve(40, 5);
-
+// final corner
+addCurve(40, 5, 0, 0.7);
   return arr;
 }
   },
@@ -261,8 +270,8 @@ function render() {
     let curr = road[(baseSegment+i)%road.length];
     let next = road[(baseSegment+i+1)%road.length];
 
-    let p1 = { x: curr.curve*roadWidth, y: curr.y || 0, z: curr.z - basePercent*segmentLength };
-    let p2 = { x: next.curve*roadWidth, y: next.y || 0, z: next.z - basePercent*segmentLength };
+    let p1 = { x: curr.curve * roadWidth + (curr.tilt || 0) * 200, y: curr.y, z: curr.z - basePercent*segmentLength };
+    let p2 = { x: next.curve * roadWidth + (next.tilt || 0) * 200, y: next.y, z: next.z - basePercent*segmentLength };
 
     if (p1.z <= cameraZ || p2.z <= cameraZ) continue;
 
