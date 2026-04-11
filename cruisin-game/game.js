@@ -110,7 +110,7 @@ function drawRoad(x, y, width, segment, index) {
   let rumble = width * segment.rumbleWidth;
 
   // Make rumble BIGGER and more visible
-  rumble = Math.max(rumble, 6);
+  rumble = Math.max(rumble, 12);
 
   // Alternate rumble color
   let rumbleColor = (Math.floor(index / segment.rumbleLength) % 2)
