@@ -17,18 +17,19 @@ canvas.height = window.innerHeight;
 // ===== CORE =====
 let playerX = 0;
 let speed = 0;
-let maxSpeed = 14; // scaled max
+let maxSpeed = 20;
 let roadWidth = 2000;
 let segmentLength = 120;
 let cameraHeight = 1000;
 let cameraDepth = 1 / Math.tan((90/2) * Math.PI/180);
 let position = 0;
+
 let trackTime = 0;
 
 // ===== CAR =====
 let currentCar = { maxSpeed: 14, color: "#ffd100" };
 
-// ===== CAR IMAGE =====
+// ===== CAR SPRITE =====
 const carImg = new Image();
 carImg.src = "https://raw.githubusercontent.com/jakesgordon/javascript-racer/master/images/player.png";
 
@@ -103,13 +104,51 @@ function drawBackground(curve) {
 
   ctx.fillStyle = sky;
   ctx.fillRect(0,0,canvas.width,canvas.height);
+
+  ctx.fillStyle = "#2c3e50";
+
+  let baseY = canvas.height * 0.4;
+  let offset = curve * 0.2;
+
+  ctx.beginPath();
+  ctx.moveTo(0, baseY);
+
+  for (let i=0;i<canvas.width;i+=100){
+    let y = Math.sin(i*0.01 + offset) * 40 + baseY;
+    ctx.lineTo(i,y);
+  }
+
+  ctx.lineTo(canvas.width,canvas.height);
+  ctx.lineTo(0,canvas.height);
+  ctx.fill();
 }
 
 // ===== ROAD =====
 function drawSegment(p1,p2,i){
   let grass = i%2 ? "#2ecc71" : "#27ae60";
+  let rumble = i%2 ? "#fff" : "#f00";
+
   ctx.fillStyle = grass;
   ctx.fillRect(0,p2.y,canvas.width,p1.y-p2.y);
+
+  let rw1 = p1.w*1.2;
+  let rw2 = p2.w*1.2;
+
+  ctx.fillStyle = rumble;
+
+  ctx.beginPath();
+  ctx.moveTo(p1.x-rw1,p1.y);
+  ctx.lineTo(p1.x-p1.w,p1.y);
+  ctx.lineTo(p2.x-p2.w,p2.y);
+  ctx.lineTo(p2.x-rw2,p2.y);
+  ctx.fill();
+
+  ctx.beginPath();
+  ctx.moveTo(p1.x+p1.w,p1.y);
+  ctx.lineTo(p1.x+rw1,p1.y);
+  ctx.lineTo(p2.x+rw2,p2.y);
+  ctx.lineTo(p2.x+p2.w,p2.y);
+  ctx.fill();
 
   ctx.fillStyle = "#444";
   ctx.beginPath();
@@ -126,7 +165,7 @@ function update(){
   if(keys["ArrowUp"]) speed += 0.4;
   if(keys["ArrowDown"]) speed -= 0.3;
 
-  speed = Math.max(0,Math.min(maxSpeed,speed));
+  speed = Math.max(0,Math.min(currentCar.maxSpeed,speed));
 
   if(keys["ArrowLeft"]) playerX -= 0.03*speed;
   if(keys["ArrowRight"]) playerX += 0.03*speed;
@@ -134,6 +173,15 @@ function update(){
   if(Math.abs(playerX)>1.2) speed *= 0.95;
 
   position += speed;
+
+  let base = Math.floor(position/segmentLength);
+  let look = road[(base+10)%road.length];
+  let corner = Math.abs(look.curve);
+
+  if(corner>2 && speed>currentCar.maxSpeed*0.6){
+    speed -= corner*0.3;
+    playerX -= look.curve*0.008*speed;
+  }
 
   trackTime += 1/60;
 }
@@ -191,10 +239,9 @@ function render(){
     ctx.restore();
   }
 
-  // ===== SPEED CALC =====
-  let speedKmh = Math.floor((speed / maxSpeed) * 200);
-
   // ===== SPEEDOMETER =====
+  let speedKmh = Math.floor((speed / currentCar.maxSpeed) * 200);
+
   ctx.fillStyle = "#000";
   ctx.fillRect(canvas.width - 180, canvas.height - 80, 160, 60);
 
@@ -204,8 +251,12 @@ function render(){
   ctx.fillStyle = "#ffd100";
   ctx.font = "20px Arial";
   ctx.textAlign = "right";
-
   ctx.fillText(speedKmh + " km/h", canvas.width - 30, canvas.height - 40);
+
+  // HUD
+  ctx.fillStyle="#fff";
+  ctx.textAlign="left";
+  ctx.fillText("Time: "+Math.floor(trackTime),20,30);
 }
 
 // ===== LOOP =====
@@ -215,7 +266,6 @@ function loop(){
   requestAnimationFrame(loop);
 }
 loop();
-
 </script>
 
 </body>
