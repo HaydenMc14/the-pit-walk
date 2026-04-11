@@ -14,169 +14,105 @@ const ctx = canvas.getContext("2d");
 canvas.width = window.innerWidth;
 canvas.height = window.innerHeight;
 
-// ===== CORE =====
+// ===== GAME STATE =====
 let playerX = 0;
 let speed = 0;
-let maxSpeed = 25;
-let roadWidth = 2000;
-let segmentLength = 120;
-let cameraHeight = 1000;
-let cameraDepth = 1 / Math.tan((90/2) * Math.PI/180);
+let maxSpeed = 200;
 let position = 0;
-let trackTime = 0;
+let trackLength = 5000;
 
-// ===== SIMPLE BUILT-IN CAR (NO IMAGE) =====
-function drawCar(x, y) {
-  ctx.fillStyle = "#1e90ff"; // WRX blue
-
-  // body
-  ctx.fillRect(x - 30, y - 60, 60, 120);
-
-  // roof
-  ctx.fillStyle = "#1565c0";
-  ctx.fillRect(x - 20, y - 90, 40, 40);
-
-  // windshield
-  ctx.fillStyle = "#aeefff";
-  ctx.fillRect(x - 15, y - 80, 30, 20);
-
-  // headlights
-  ctx.fillStyle = "#fff";
-  ctx.fillRect(x - 20, y - 60, 10, 10);
-  ctx.fillRect(x + 10, y - 60, 10, 10);
-}
-
-// ===== TRACK =====
-function buildTrack() {
-  let arr = [];
-
-  function addStraight(length) {
-    for (let i = 0; i < length; i++) {
-      arr.push({ z: arr.length * segmentLength, curve: 0, y: 0 });
-    }
-  }
-
-  function addCorner(enter, hold, exit, curveStrength) {
-    for (let i = 0; i < enter; i++) {
-      let p = i / enter;
-      arr.push({ z: arr.length * segmentLength, curve: curveStrength * p, y: 0 });
-    }
-    for (let i = 0; i < hold; i++) {
-      arr.push({ z: arr.length * segmentLength, curve: curveStrength, y: 0 });
-    }
-    for (let i = 0; i < exit; i++) {
-      let p = 1 - i / exit;
-      arr.push({ z: arr.length * segmentLength, curve: curveStrength * p, y: 0 });
-    }
-  }
-
-  addStraight(40);
-  addCorner(20,20,20,1.5);
-  addCorner(30,30,30,-3);
-  addStraight(40);
-  addCorner(20,30,20,3);
-  addStraight(60);
-  addCorner(20,20,20,1.5);
-  addStraight(40);
-  addCorner(20,20,20,4);
-  addCorner(20,20,20,-2);
-  addStraight(60);
-  addCorner(20,30,20,3);
-  addCorner(20,30,20,-3);
-  addCorner(20,20,20,4);
-
-  return arr;
-}
-
-let road = buildTrack();
-
-// ===== INPUT =====
 let keys = {};
 document.addEventListener("keydown", e => keys[e.key] = true);
 document.addEventListener("keyup", e => keys[e.key] = false);
 
-// ===== PROJECT =====
-function project(p, cameraX, cameraZ) {
-  let dz = p.z - cameraZ;
-  if (dz <= 0) return null;
-
-  let scale = cameraDepth / dz;
-
-  return {
-    x: (1 + scale * (p.x - cameraX)) * canvas.width / 2,
-    y: (1 - scale * (p.y - cameraHeight)) * canvas.height / 2,
-    w: scale * roadWidth * canvas.width / 2
-  };
-}
-
-// ===== BACKGROUND =====
-function drawBackground(curve) {
-  let sky = ctx.createLinearGradient(0,0,0,canvas.height);
-  sky.addColorStop(0,"#4da6ff");
-  sky.addColorStop(1,"#87CEEB");
-
-  ctx.fillStyle = sky;
-  ctx.fillRect(0,0,canvas.width,canvas.height);
-}
-
 // ===== ROAD =====
-function drawSegment(p1,p2,i){
-  let grass = i%2 ? "#2ecc71" : "#27ae60";
+const segments = [];
 
-  ctx.fillStyle = grass;
-  ctx.fillRect(0,p2.y,canvas.width,p1.y-p2.y);
-
-  ctx.fillStyle = "#444";
-  ctx.beginPath();
-  ctx.moveTo(p1.x-p1.w,p1.y);
-  ctx.lineTo(p1.x+p1.w,p1.y);
-  ctx.lineTo(p2.x+p2.w,p2.y);
-  ctx.lineTo(p2.x-p2.w,p2.y);
-  ctx.fill();
+for (let i = 0; i < 200; i++) {
+  segments.push({
+    curve: Math.sin(i * 0.1) * 2,
+    y: Math.sin(i * 0.05) * 50
+  });
 }
 
 // ===== UPDATE =====
-function update(){
+function update() {
 
-  if(keys["ArrowUp"]) speed += 0.5;
-  if(keys["ArrowDown"]) speed -= 0.4;
+  if (keys["ArrowUp"]) speed += 2;
+  if (keys["ArrowDown"]) speed -= 3;
 
-  speed = Math.max(0,Math.min(maxSpeed,speed));
+  speed = Math.max(0, Math.min(maxSpeed, speed));
 
-  if(keys["ArrowLeft"]) playerX -= 0.04*speed;
-  if(keys["ArrowRight"]) playerX += 0.04*speed;
+  if (keys["ArrowLeft"]) playerX -= 0.05;
+  if (keys["ArrowRight"]) playerX += 0.05;
 
-  if(Math.abs(playerX)>1.2) speed *= 0.95;
+  position += speed * 0.02;
 
-  position += speed;
-
-  trackTime += 1/60;
+  if (Math.abs(playerX) > 1) speed *= 0.95;
 }
 
-// ===== CAMERA =====
-let camOffset = 0;
+// ===== DRAW ROAD =====
+function drawRoad() {
+
+  let base = Math.floor(position) % segments.length;
+  let x = 0;
+
+  for (let i = 0; i < 100; i++) {
+
+    let seg = segments[(base + i) % segments.length];
+    let scale = 1 - i / 100;
+
+    let width = canvas.width * scale * 0.8;
+    let y = canvas.height - i * 8;
+
+    x += seg.curve * 0.5;
+
+    ctx.fillStyle = i % 2 ? "#444" : "#555";
+
+    ctx.fillRect(
+      canvas.width/2 - width/2 + x*50,
+      y,
+      width,
+      8
+    );
+  }
+}
+
+// ===== DRAW CAR =====
+function drawCar() {
+  ctx.fillStyle = "#ffd100";
+  ctx.fillRect(canvas.width/2 - 20 + playerX*200, canvas.height - 80, 40, 60);
+}
 
 // ===== RENDER =====
-function render(){
+function render() {
 
-  let base = Math.floor(position/segmentLength);
-  let percent = (position%segmentLength)/segmentLength;
+  // sky
+  ctx.fillStyle = "#4da6ff";
+  ctx.fillRect(0, 0, canvas.width, canvas.height);
 
-  let curveSum = 0;
-  for(let i=0;i<20;i++){
-    curveSum += road[(base+i)%road.length].curve;
-  }
+  drawRoad();
+  drawCar();
 
-  drawBackground(curveSum);
+  // speedometer
+  ctx.fillStyle = "#000";
+  ctx.fillRect(canvas.width - 180, canvas.height - 80, 160, 60);
 
-  camOffset += (curveSum*20 - camOffset)*0.1;
+  ctx.fillStyle = "#ffd100";
+  ctx.font = "20px Arial";
+  ctx.textAlign = "right";
+  ctx.fillText(Math.floor(speed) + " km/h", canvas.width - 30, canvas.height - 40);
+}
 
-  let cameraX = playerX*roadWidth + camOffset;
-  let cameraZ = position;
+// ===== LOOP =====
+function loop() {
+  update();
+  render();
+  requestAnimationFrame(loop);
+}
 
-  let maxY = canvas.height;
+loop();
+</script>
 
-  for(let i=0;i<300;i++){
-
-    let curr = road[(base+i)%road.length];
-    let
+</body>
+</html>
