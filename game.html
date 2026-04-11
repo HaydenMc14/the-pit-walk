@@ -140,16 +140,7 @@ function nextTrack() {
   inTransition = false;
 }
 function update() {
-function nextTrack() {
-  currentTrackIndex = (currentTrackIndex + 1) % tracks.length;
 
-  road = tracks[currentTrackIndex].build();
-  currentCar = cars[currentTrackIndex % cars.length];
-
-  position = 0;
-  trackTime = 0;
-  inTransition = false;
-}
   // Controls
   if (keys["ArrowUp"]) speed += 0.2;
   if (keys["ArrowDown"]) speed -= 0.3;
@@ -214,8 +205,6 @@ if (inTransition) {
 
   return;
 }
-
-  return;
 ctx.fillStyle = "#fff";
 ctx.font = "20px Arial";
 ctx.textAlign = "left";
