@@ -129,16 +129,7 @@ function drawSegment(p1, p2, index) {
   ctx.lineTo(p2.x, p2.y);
   ctx.stroke();
 }
-function nextTrack() {
-  currentTrackIndex = (currentTrackIndex + 1) % tracks.length;
 
-  road = tracks[currentTrackIndex].build();
-  currentCar = cars[currentTrackIndex % cars.length];
-
-  position = 0;
-  trackTime = 0;
-  inTransition = false;
-}
 function update() {
 
   // Controls
