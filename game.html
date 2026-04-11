@@ -39,16 +39,63 @@ const cars = [
 const tracks = [
   {
     name: "Mallala",
-    build: () => {
-      let arr = [];
-      for (let i = 0; i < 500; i++) {
-        arr.push({
-          z: i * segmentLength,
-          curve: Math.sin(i * 0.05) * 2
-        });
-      }
-      return arr;
+build: () => {
+  let arr = [];
+
+  function addSegment(length, curve = 0, hill = 0) {
+    for (let i = 0; i < length; i++) {
+      arr.push({
+        z: arr.length * segmentLength,
+        curve: curve,
+        y: hill
+      });
     }
+  }
+
+  // ===== MAIN STRAIGHT =====
+  addSegment(80, 0);
+
+  // ===== TURN 1 (tight right) =====
+  addSegment(25, 4);
+
+  // ===== SHORT STRAIGHT =====
+  addSegment(20, 0);
+
+  // ===== TURN 2 (left) =====
+  addSegment(25, -3);
+
+  // ===== TURN 3 (long right) =====
+  addSegment(40, 2);
+
+  // ===== TURN 4 (slight rise then fall) =====
+  for (let i = 0; i < 40; i++) {
+    arr.push({
+      z: arr.length * segmentLength,
+      curve: 1.5,
+      y: Math.sin(i / 40 * Math.PI) * 200 // gentle hill
+    });
+  }
+
+  // ===== BACK STRAIGHT =====
+  addSegment(80, 0);
+
+  // ===== TURN 5 (right) =====
+  addSegment(30, 3);
+
+  // ===== TURN 6 (tight left) =====
+  addSegment(25, -4);
+
+  // ===== TURN 7 (flowing right) =====
+  addSegment(35, 2);
+
+  // ===== FINAL CORNER (tight left) =====
+  addSegment(30, -5);
+
+  // ===== SHORT STRAIGHT TO FINISH =====
+  addSegment(40, 0);
+
+  return arr;
+}
   },
   {
     name: "The Bend",
@@ -205,8 +252,8 @@ function render() {
     let curr = road[(baseSegment+i)%road.length];
     let next = road[(baseSegment+i+1)%road.length];
 
-    let p1 = { x: curr.curve*roadWidth, y:0, z: curr.z - basePercent*segmentLength };
-    let p2 = { x: next.curve*roadWidth, y:0, z: next.z - basePercent*segmentLength };
+    let p1 = { x: curr.curve*roadWidth, y: curr.y || 0, z: curr.z - basePercent*segmentLength };
+    let p2 = { x: next.curve*roadWidth, y: next.y || 0, z: next.z - basePercent*segmentLength };
 
     if (p1.z <= cameraZ || p2.z <= cameraZ) continue;
 
