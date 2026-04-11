@@ -88,7 +88,7 @@ function render() {
     baseX += segment.curve * 20;
 
     let y = canvas.height - i * 15;
-    let width = 200 * (1 - i / 50);
+let width = 400 * segment.width * (1 - i / 50);
 
     drawRoad(baseX - camX, y, width);
   }
