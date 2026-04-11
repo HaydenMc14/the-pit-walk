@@ -29,20 +29,9 @@ let trackTime = 0;
 // ===== CAR =====
 let currentCar = { maxSpeed: 14, color: "#ffd100" };
 
-// ===== TRACK =====
+// ===== TRACK (CANNONBALL STYLE) =====
 function buildTrack() {
   let arr = [];
-
-  function addCurve(length, maxCurve) {
-    for (let i = 0; i < length; i++) {
-      let p = i / length;
-      arr.push({
-        z: arr.length * segmentLength,
-        curve: Math.sin(p * Math.PI) * maxCurve,
-        y: Math.sin(p * Math.PI) * 100
-      });
-    }
-  }
 
   function addStraight(length) {
     for (let i = 0; i < length; i++) {
@@ -54,20 +43,67 @@ function buildTrack() {
     }
   }
 
+  function addCorner(enter, hold, exit, curveStrength, hill = 0) {
+
+    // ENTER
+    for (let i = 0; i < enter; i++) {
+      let p = i / enter;
+      arr.push({
+        z: arr.length * segmentLength,
+        curve: curveStrength * p,
+        y: Math.sin(p * Math.PI) * hill
+      });
+    }
+
+    // HOLD (APEX)
+    for (let i = 0; i < hold; i++) {
+      arr.push({
+        z: arr.length * segmentLength,
+        curve: curveStrength,
+        y: hill
+      });
+    }
+
+    // EXIT
+    for (let i = 0; i < exit; i++) {
+      let p = 1 - (i / exit);
+      arr.push({
+        z: arr.length * segmentLength,
+        curve: curveStrength * p,
+        y: Math.sin(p * Math.PI) * hill
+      });
+    }
+  }
+
+  // ===== MALLALA FLOW =====
+
   addStraight(40);
-  addCurve(40, 1.5);
-  addCurve(60, -3);
+
+  addCorner(20, 20, 20, 1.5); // gentle right
+
+  addCorner(30, 30, 30, -3); // wide left hairpin
+
   addStraight(40);
-  addCurve(50, 3);
+
+  addCorner(20, 30, 20, 3); // right hairpin
+
   addStraight(60);
-  addCurve(40, 1.5);
+
+  addCorner(20, 20, 20, 1.5, 150); // slight hill section
+
   addStraight(40);
-  addCurve(40, 4.5);
-  addCurve(40, -2);
+
+  addCorner(20, 20, 20, 4.5); // tight right
+
+  addCorner(20, 20, 20, -2); // flowing left
+
   addStraight(60);
-  addCurve(50, 3);
-  addCurve(50, -3);
-  addCurve(40, 5);
+
+  addCorner(20, 30, 20, 3); // right hairpin
+
+  addCorner(20, 30, 20, -3); // left hairpin
+
+  addCorner(20, 20, 20, 5); // final corner
 
   return arr;
 }
@@ -96,14 +132,13 @@ function project(p, cameraX, cameraZ) {
 // ===== BACKGROUND =====
 function drawBackground(curve) {
 
-  // SKY
   let sky = ctx.createLinearGradient(0,0,0,canvas.height);
   sky.addColorStop(0,"#4da6ff");
   sky.addColorStop(1,"#87CEEB");
+
   ctx.fillStyle = sky;
   ctx.fillRect(0,0,canvas.width,canvas.height);
 
-  // MOUNTAINS
   ctx.fillStyle = "#2c3e50";
 
   let baseY = canvas.height * 0.4;
@@ -203,6 +238,7 @@ function render(){
   drawBackground(curveSum);
 
   camOffset += (curveSum*50 - camOffset)*0.1;
+
   let cameraX = playerX*roadWidth + camOffset;
   let cameraZ = position;
 
@@ -235,11 +271,9 @@ function render(){
     maxY = proj1.y;
   }
 
-  // CAR
   ctx.fillStyle = currentCar.color;
   ctx.fillRect(canvas.width/2-25+playerX*200,canvas.height-100,50,80);
 
-  // HUD
   ctx.fillStyle="#fff";
   ctx.font="20px Arial";
   ctx.fillText("Time: "+Math.floor(trackTime),20,30);
