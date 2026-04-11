@@ -85,7 +85,7 @@ function render() {
     let segment = track[segmentIndex];
 
     // Curve accumulation (world bending)
-    baseX += segment.curve * 5;
+    baseX += segment.curve * 20;
 
     let y = canvas.height - i * 15;
     let width = 200 * (1 - i / 50);
