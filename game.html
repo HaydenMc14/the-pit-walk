@@ -24,32 +24,22 @@ let cameraHeight = 1000;
 let cameraDepth = 1 / Math.tan((90/2) * Math.PI/180);
 let position = 0;
 
-let currentTrackIndex = 0;
 let trackTime = 0;
-let inTransition = false;
-let transitionTime = 0;
 
-// ===== CARS =====
-const cars = [
-  { name: "Drift Car", maxSpeed: 10, color: "#9b59b6" },
-  { name: "Circuit Car", maxSpeed: 14, color: "#ffd100" }
-];
+// ===== CAR =====
+let currentCar = { maxSpeed: 14, color: "#ffd100" };
 
 // ===== TRACK =====
-const tracks = [
-{
-name: "Mallala",
-build: () => {
+function buildTrack() {
   let arr = [];
 
-  function addCurve(length, maxCurve, hill = 0, camber = 0) {
+  function addCurve(length, maxCurve) {
     for (let i = 0; i < length; i++) {
       let p = i / length;
       arr.push({
         z: arr.length * segmentLength,
         curve: Math.sin(p * Math.PI) * maxCurve,
-        y: Math.sin(p * Math.PI) * hill,
-        tilt: Math.sin(p * Math.PI) * camber
+        y: Math.sin(p * Math.PI) * 100
       });
     }
   }
@@ -59,43 +49,38 @@ build: () => {
       arr.push({
         z: arr.length * segmentLength,
         curve: 0,
-        y: 0,
-        tilt: 0
+        y: 0
       });
     }
   }
 
   addStraight(40);
-  addCurve(40, 1.5, 0, 0.3);
-  addCurve(60, -3, 0, -0.5);
+  addCurve(40, 1.5);
+  addCurve(60, -3);
   addStraight(40);
-  addCurve(50, 3, 0, 0.5);
+  addCurve(50, 3);
   addStraight(60);
-  addCurve(40, 1.5, 200, 0.2);
+  addCurve(40, 1.5);
   addStraight(40);
-  addCurve(40, 4.5, 0, 0.6);
-  addCurve(40, -2, 0, -0.3);
+  addCurve(40, 4.5);
+  addCurve(40, -2);
   addStraight(60);
-  addCurve(50, 3, 0, 0.5);
-  addCurve(50, -3, 0, -0.5);
-  addCurve(40, 5, 0, 0.7);
+  addCurve(50, 3);
+  addCurve(50, -3);
+  addCurve(40, 5);
 
   return arr;
 }
-}
-];
+
+let road = buildTrack();
 
 // ===== INPUT =====
 let keys = {};
 document.addEventListener("keydown", e => keys[e.key] = true);
 document.addEventListener("keyup", e => keys[e.key] = false);
 
-// ===== INIT =====
-let road = tracks[0].build();
-let currentCar = cars[0];
-
-// ===== PROJECT =====
-function project(p, cameraX, cameraY, cameraZ) {
+// ===== PROJECTION =====
+function project(p, cameraX, cameraZ) {
   let dz = p.z - cameraZ;
   if (dz <= 0) return null;
 
@@ -103,201 +88,161 @@ function project(p, cameraX, cameraY, cameraZ) {
 
   return {
     x: (1 + scale * (p.x - cameraX)) * canvas.width / 2,
-    y: (1 - scale * (p.y - cameraY)) * canvas.height / 2,
+    y: (1 - scale * (p.y - cameraHeight)) * canvas.height / 2,
     w: scale * roadWidth * canvas.width / 2
   };
 }
 
-// ===== DRAW =====
-function drawSegment(p1, p2, i) {
+// ===== BACKGROUND =====
+function drawBackground(curve) {
 
-  let grass = i % 2 ? "#2ecc71" : "#27ae60";
-  let rumble = i % 2 ? "#fff" : "#f00";
-
-  ctx.fillStyle = grass;
-  ctx.fillRect(0, p2.y, canvas.width, p1.y - p2.y);
-
-  let rw1 = p1.w * 1.2;
-  let rw2 = p2.w * 1.2;
-
-  ctx.fillStyle = rumble;
-  ctx.beginPath();
-  ctx.moveTo(p1.x - rw1, p1.y);
-  ctx.lineTo(p1.x - p1.w, p1.y);
-  ctx.lineTo(p2.x - p2.w, p2.y);
-  ctx.lineTo(p2.x - rw2, p2.y);
-  ctx.fill();
-
-  ctx.beginPath();
-  ctx.moveTo(p1.x + p1.w, p1.y);
-  ctx.lineTo(p1.x + rw1, p1.y);
-  ctx.lineTo(p2.x + rw2, p2.y);
-  ctx.lineTo(p2.x + p2.w, p2.y);
-  ctx.fill();
-
-  ctx.fillStyle = "#444";
-  ctx.beginPath();
-  ctx.moveTo(p1.x - p1.w, p1.y);
-  ctx.lineTo(p1.x + p1.w, p1.y);
-  ctx.lineTo(p2.x + p2.w, p2.y);
-  ctx.lineTo(p2.x - p2.w, p2.y);
-  ctx.fill();
-}
-
-// ===== UPDATE =====
-function update() {
-
-  if (keys["ArrowUp"]) speed += 0.4;
-  if (keys["ArrowDown"]) speed -= 0.3;
-
-  maxSpeed = currentCar.maxSpeed;
-  speed = Math.max(0, Math.min(maxSpeed, speed));
-
-  if (keys["ArrowLeft"]) playerX -= 0.05 * speed;
-  if (keys["ArrowRight"]) playerX += 0.05 * speed;
-
-  if (Math.abs(playerX) > 1.2) speed *= 0.95;
-
-  position += speed;
-
-  let base = Math.floor(position / segmentLength);
-  let look = road[(base + 10) % road.length];
-  let corner = Math.abs(look.curve);
-
-  if (corner > 2 && speed > maxSpeed * 0.6) {
-    speed -= corner * 0.3;
-    playerX -= look.curve * 0.01 * speed;
-  }
-
-  if (!inTransition) {
-    trackTime += 1/60;
-    if (trackTime > 30) {
-      inTransition = true;
-      transitionTime = 0;
-    }
-  } else {
-    transitionTime += 1/60;
-    if (transitionTime > 5) {
-      position = 0;
-      trackTime = 0;
-      inTransition = false;
-    }
-  }
-}
-
-// ===== CAMERA =====
-let camOffset = 0;
-function drawBackground(curveShift) {
-
-  // ===== SKY GRADIENT =====
-  let sky = ctx.createLinearGradient(0, 0, 0, canvas.height);
-  sky.addColorStop(0, "#4da6ff");
-  sky.addColorStop(1, "#87CEEB");
-
+  // SKY
+  let sky = ctx.createLinearGradient(0,0,0,canvas.height);
+  sky.addColorStop(0,"#4da6ff");
+  sky.addColorStop(1,"#87CEEB");
   ctx.fillStyle = sky;
-  ctx.fillRect(0, 0, canvas.width, canvas.height);
+  ctx.fillRect(0,0,canvas.width,canvas.height);
 
-  // ===== MOUNTAINS (PARALLAX) =====
+  // MOUNTAINS
   ctx.fillStyle = "#2c3e50";
 
   let baseY = canvas.height * 0.4;
-  let offset = curveShift * 0.3; // parallax movement
+  let offset = curve * 0.3;
 
   ctx.beginPath();
   ctx.moveTo(0, baseY);
 
-  for (let i = 0; i < canvas.width; i += 100) {
-    let height = Math.sin(i * 0.01 + offset) * 50 + baseY;
-    ctx.lineTo(i, height);
+  for (let i=0;i<canvas.width;i+=100){
+    let y = Math.sin(i*0.01 + offset) * 50 + baseY;
+    ctx.lineTo(i,y);
   }
 
-  ctx.lineTo(canvas.width, canvas.height);
-  ctx.lineTo(0, canvas.height);
-  ctx.closePath();
+  ctx.lineTo(canvas.width,canvas.height);
+  ctx.lineTo(0,canvas.height);
   ctx.fill();
 }
-// ===== RENDER =====
-function render() {
 
-  if (inTransition) {
-    ctx.fillStyle = "black";
-    ctx.fillRect(0,0,canvas.width,canvas.height);
-    ctx.fillStyle = "#ffd100";
-    ctx.font = "40px Arial";
-    ctx.textAlign = "center";
-    ctx.fillText("Next Section", canvas.width/2, canvas.height/2);
-    return;
-  }
+// ===== ROAD =====
+function drawSegment(p1,p2,i){
 
-// calculate curve for parallax
-let base = Math.floor(position / segmentLength);
+  let grass = i%2 ? "#2ecc71" : "#27ae60";
+  let rumble = i%2 ? "#fff" : "#f00";
 
-let curveSum = 0;
-for (let i = 0; i < 20; i++) {
-  curveSum += road[(base + i) % road.length].curve;
+  ctx.fillStyle = grass;
+  ctx.fillRect(0,p2.y,canvas.width,p1.y-p2.y);
+
+  let rw1 = p1.w*1.2;
+  let rw2 = p2.w*1.2;
+
+  ctx.fillStyle = rumble;
+
+  ctx.beginPath();
+  ctx.moveTo(p1.x-rw1,p1.y);
+  ctx.lineTo(p1.x-p1.w,p1.y);
+  ctx.lineTo(p2.x-p2.w,p2.y);
+  ctx.lineTo(p2.x-rw2,p2.y);
+  ctx.fill();
+
+  ctx.beginPath();
+  ctx.moveTo(p1.x+p1.w,p1.y);
+  ctx.lineTo(p1.x+rw1,p1.y);
+  ctx.lineTo(p2.x+rw2,p2.y);
+  ctx.lineTo(p2.x+p2.w,p2.y);
+  ctx.fill();
+
+  ctx.fillStyle = "#444";
+  ctx.beginPath();
+  ctx.moveTo(p1.x-p1.w,p1.y);
+  ctx.lineTo(p1.x+p1.w,p1.y);
+  ctx.lineTo(p2.x+p2.w,p2.y);
+  ctx.lineTo(p2.x-p2.w,p2.y);
+  ctx.fill();
 }
 
-// draw sky + mountains
-drawBackground(curveSum);
+// ===== UPDATE =====
+function update(){
 
-  let base = Math.floor(position / segmentLength);
-  let percent = (position % segmentLength) / segmentLength;
+  if(keys["ArrowUp"]) speed += 0.4;
+  if(keys["ArrowDown"]) speed -= 0.3;
+
+  speed = Math.max(0,Math.min(currentCar.maxSpeed,speed));
+
+  if(keys["ArrowLeft"]) playerX -= 0.05*speed;
+  if(keys["ArrowRight"]) playerX += 0.05*speed;
+
+  if(Math.abs(playerX)>1.2) speed *= 0.95;
+
+  position += speed;
+
+  let base = Math.floor(position/segmentLength);
+  let look = road[(base+10)%road.length];
+  let corner = Math.abs(look.curve);
+
+  if(corner>2 && speed>currentCar.maxSpeed*0.6){
+    speed -= corner*0.3;
+    playerX -= look.curve*0.01*speed;
+  }
+
+  trackTime += 1/60;
+}
+
+// ===== CAMERA =====
+let camOffset = 0;
+
+// ===== RENDER =====
+function render(){
+
+  let base = Math.floor(position/segmentLength);
+  let percent = (position%segmentLength)/segmentLength;
 
   let curveSum = 0;
-  for (let i=0;i<20;i++) {
+  for(let i=0;i<20;i++){
     curveSum += road[(base+i)%road.length].curve;
   }
-ctx.fillStyle = "#1a252f";
-ctx.beginPath();
 
-for (let i = 0; i < canvas.width; i += 120) {
-  let height = Math.sin(i * 0.008 + offset * 0.5) * 30 + baseY + 50;
-  ctx.lineTo(i, height);
-}
+  drawBackground(curveSum);
 
-ctx.lineTo(canvas.width, canvas.height);
-ctx.lineTo(0, canvas.height);
-ctx.fill();
-  camOffset += (curveSum * 50 - camOffset) * 0.1;
-
-  let cameraX = playerX * roadWidth + camOffset;
+  camOffset += (curveSum*50 - camOffset)*0.1;
+  let cameraX = playerX*roadWidth + camOffset;
   let cameraZ = position;
 
   let maxY = canvas.height;
 
-  for (let i=0;i<300;i++) {
+  for(let i=0;i<300;i++){
 
     let curr = road[(base+i)%road.length];
     let next = road[(base+i+1)%road.length];
 
     let p1 = {
-      x: curr.curve*roadWidth + (curr.tilt||0)*200,
+      x: curr.curve*roadWidth,
       y: curr.y,
       z: curr.z - percent*segmentLength
     };
 
     let p2 = {
-      x: next.curve*roadWidth + (next.tilt||0)*200,
+      x: next.curve*roadWidth,
       y: next.y,
       z: next.z - percent*segmentLength
     };
 
-    let proj1 = project(p1,cameraX,cameraHeight,cameraZ);
-    let proj2 = project(p2,cameraX,cameraHeight,cameraZ);
+    let proj1 = project(p1,cameraX,cameraZ);
+    let proj2 = project(p2,cameraX,cameraZ);
 
-    if (!proj1 || !proj2) continue;
-    if (proj1.y >= maxY) continue;
+    if(!proj1 || !proj2) continue;
+    if(proj1.y>=maxY) continue;
 
-    drawSegment(proj1, proj2, i);
+    drawSegment(proj1,proj2,i);
     maxY = proj1.y;
   }
 
+  // CAR
   ctx.fillStyle = currentCar.color;
-  ctx.fillRect(canvas.width/2-25+playerX*200, canvas.height-100, 50, 80);
+  ctx.fillRect(canvas.width/2-25+playerX*200,canvas.height-100,50,80);
 
-  ctx.fillStyle = "#fff";
-  ctx.font = "20px Arial";
-  ctx.fillText("Time: " + Math.floor(trackTime), 20, 30);
+  // HUD
+  ctx.fillStyle="#fff";
+  ctx.font="20px Arial";
+  ctx.fillText("Time: "+Math.floor(trackTime),20,30);
 }
 
 // ===== LOOP =====
