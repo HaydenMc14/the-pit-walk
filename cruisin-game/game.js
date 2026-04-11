@@ -112,11 +112,12 @@ function drawRoad(x, y, width) {
 function drawCar() {
   ctx.fillStyle = "red";
 
+  // Draw slightly higher so it's clearly visible
   ctx.fillRect(
-    canvas.width / 2 - 20,
-    canvas.height - 60,
-    40,
-    30
+    canvas.width / 2 - 25,
+    canvas.height - 120,
+    50,
+    60
   );
 }
 
