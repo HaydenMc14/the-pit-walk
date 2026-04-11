@@ -8,7 +8,7 @@ const trackData = [
     curve: 0,
     elevation: 0,
     tilt: 0,
-    width: 10.2,
+    width: 3.2,
     grip: 1,
     rumbleWidth: 0.15,
     rumbleLength: 20
@@ -28,7 +28,7 @@ const trackData = [
     curve: -0.8,
     elevation: -0.2,
     tilt: -0.2,
-    width: 2.3,
+    width: 3.2,
     grip: 0.6,
     rumbleWidth: 0.25,
     rumbleLength: 40
