@@ -17,7 +17,6 @@ canvas.height = window.innerHeight;
 // ===== CORE =====
 let playerX = 0;
 let speed = 0;
-let maxSpeed = 20;
 let roadWidth = 2000;
 let segmentLength = 120;
 let cameraHeight = 1000;
@@ -29,81 +28,44 @@ let trackTime = 0;
 // ===== CAR =====
 let currentCar = { maxSpeed: 14, color: "#ffd100" };
 
-// ===== TRACK (CANNONBALL STYLE) =====
+// ===== TRACK =====
 function buildTrack() {
   let arr = [];
 
   function addStraight(length) {
     for (let i = 0; i < length; i++) {
-      arr.push({
-        z: arr.length * segmentLength,
-        curve: 0,
-        y: 0
-      });
+      arr.push({ z: arr.length * segmentLength, curve: 0, y: 0 });
     }
   }
 
   function addCorner(enter, hold, exit, curveStrength, hill = 0) {
-
-    // ENTER
     for (let i = 0; i < enter; i++) {
       let p = i / enter;
-      arr.push({
-        z: arr.length * segmentLength,
-        curve: curveStrength * p,
-        y: Math.sin(p * Math.PI) * hill
-      });
+      arr.push({ z: arr.length * segmentLength, curve: curveStrength * p, y: hill * p });
     }
-
-    // HOLD (APEX)
     for (let i = 0; i < hold; i++) {
-      arr.push({
-        z: arr.length * segmentLength,
-        curve: curveStrength,
-        y: hill
-      });
+      arr.push({ z: arr.length * segmentLength, curve: curveStrength, y: hill });
     }
-
-    // EXIT
     for (let i = 0; i < exit; i++) {
-      let p = 1 - (i / exit);
-      arr.push({
-        z: arr.length * segmentLength,
-        curve: curveStrength * p,
-        y: Math.sin(p * Math.PI) * hill
-      });
+      let p = 1 - i / exit;
+      arr.push({ z: arr.length * segmentLength, curve: curveStrength * p, y: hill * p });
     }
   }
 
-  // ===== MALLALA FLOW =====
-
   addStraight(40);
-
-  addCorner(20, 20, 20, 1.5); // gentle right
-
-  addCorner(30, 30, 30, -3); // wide left hairpin
-
+  addCorner(20,20,20,1.5);
+  addCorner(30,30,30,-3);
   addStraight(40);
-
-  addCorner(20, 30, 20, 3); // right hairpin
-
+  addCorner(20,30,20,3);
   addStraight(60);
-
-  addCorner(20, 20, 20, 1.5, 150); // slight hill section
-
+  addCorner(20,20,20,1.5,150);
   addStraight(40);
-
-  addCorner(20, 20, 20, 4.5); // tight right
-
-  addCorner(20, 20, 20, -2); // flowing left
-
+  addCorner(20,20,20,4.5);
+  addCorner(20,20,20,-2);
   addStraight(60);
-
-  addCorner(20, 30, 20, 3); // right hairpin
-
-  addCorner(20, 30, 20, -3); // left hairpin
-
-  addCorner(20, 20, 20, 5); // final corner
+  addCorner(20,30,20,3);
+  addCorner(20,30,20,-3);
+  addCorner(20,20,20,5);
 
   return arr;
 }
@@ -115,7 +77,7 @@ let keys = {};
 document.addEventListener("keydown", e => keys[e.key] = true);
 document.addEventListener("keyup", e => keys[e.key] = false);
 
-// ===== PROJECTION =====
+// ===== PROJECT =====
 function project(p, cameraX, cameraZ) {
   let dz = p.z - cameraZ;
   if (dz <= 0) return null;
@@ -125,17 +87,16 @@ function project(p, cameraX, cameraZ) {
   return {
     x: (1 + scale * (p.x - cameraX)) * canvas.width / 2,
     y: (1 - scale * (p.y - cameraHeight)) * canvas.height / 2,
-    w: scale * roadWidth * canvas.width / 2
+    w: scale * roadWidth * canvas.width / 2,
+    scale: scale
   };
 }
 
 // ===== BACKGROUND =====
 function drawBackground(curve) {
-
   let sky = ctx.createLinearGradient(0,0,0,canvas.height);
   sky.addColorStop(0,"#4da6ff");
   sky.addColorStop(1,"#87CEEB");
-
   ctx.fillStyle = sky;
   ctx.fillRect(0,0,canvas.width,canvas.height);
 
@@ -159,7 +120,6 @@ function drawBackground(curve) {
 
 // ===== ROAD =====
 function drawSegment(p1,p2,i){
-
   let grass = i%2 ? "#2ecc71" : "#27ae60";
   let rumble = i%2 ? "#fff" : "#f00";
 
@@ -170,7 +130,6 @@ function drawSegment(p1,p2,i){
   let rw2 = p2.w*1.2;
 
   ctx.fillStyle = rumble;
-
   ctx.beginPath();
   ctx.moveTo(p1.x-rw1,p1.y);
   ctx.lineTo(p1.x-p1.w,p1.y);
@@ -192,6 +151,30 @@ function drawSegment(p1,p2,i){
   ctx.lineTo(p2.x+p2.w,p2.y);
   ctx.lineTo(p2.x-p2.w,p2.y);
   ctx.fill();
+}
+
+// ===== SCENERY =====
+function drawBillboard(x,y,scale,type){
+
+  const size = scale * 300;
+
+  if(type==="building"){
+    ctx.fillStyle="#888";
+    ctx.fillRect(x-size*0.5,y-size,size,size);
+  }
+
+  if(type==="sign"){
+    ctx.fillStyle="#fff";
+    ctx.fillRect(x-size*0.3,y-size*0.4,size*0.6,size*0.2);
+    ctx.fillStyle="#000";
+    ctx.font = `${size*0.15}px Arial`;
+    ctx.fillText("MALLALA", x-size*0.25, y-size*0.25);
+  }
+
+  if(type==="stand"){
+    ctx.fillStyle="#555";
+    ctx.fillRect(x-size*0.6,y-size*0.5,size*1.2,size*0.3);
+  }
 }
 
 // ===== UPDATE =====
@@ -249,17 +232,8 @@ function render(){
     let curr = road[(base+i)%road.length];
     let next = road[(base+i+1)%road.length];
 
-    let p1 = {
-      x: curr.curve*roadWidth,
-      y: curr.y,
-      z: curr.z - percent*segmentLength
-    };
-
-    let p2 = {
-      x: next.curve*roadWidth,
-      y: next.y,
-      z: next.z - percent*segmentLength
-    };
+    let p1 = { x: curr.curve*roadWidth, y: curr.y, z: curr.z - percent*segmentLength };
+    let p2 = { x: next.curve*roadWidth, y: next.y, z: next.z - percent*segmentLength };
 
     let proj1 = project(p1,cameraX,cameraZ);
     let proj2 = project(p2,cameraX,cameraZ);
@@ -267,11 +241,25 @@ function render(){
     if(!proj1 || !proj2) continue;
     if(proj1.y>=maxY) continue;
 
+    // ===== ADD BUILDINGS & SIGNS =====
+    if(i%40===0){
+      drawBillboard(proj1.x - proj1.w - 150, proj1.y, proj1.scale,"building");
+      drawBillboard(proj1.x + proj1.w + 150, proj1.y, proj1.scale,"building");
+    }
+
+    if(i%60===0){
+      drawBillboard(proj1.x + proj1.w + 250, proj1.y, proj1.scale,"sign");
+    }
+
+    if(i%80===0){
+      drawBillboard(proj1.x - proj1.w - 250, proj1.y, proj1.scale,"stand");
+    }
+
     drawSegment(proj1,proj2,i);
     maxY = proj1.y;
   }
 
-  ctx.fillStyle = currentCar.color;
+  ctx.fillStyle=currentCar.color;
   ctx.fillRect(canvas.width/2-25+playerX*200,canvas.height-100,50,80);
 
   ctx.fillStyle="#fff";
