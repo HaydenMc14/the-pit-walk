@@ -42,8 +42,11 @@ const tracks = [
 build: () => {
   let arr = [];
 
-  function addSegment(length, curve = 0) {
+  function addCurve(length, maxCurve) {
     for (let i = 0; i < length; i++) {
+      let progress = i / length;
+      let curve = Math.sin(progress * Math.PI) * maxCurve;
+
       arr.push({
         z: arr.length * segmentLength,
         curve: curve,
@@ -52,47 +55,53 @@ build: () => {
     }
   }
 
-  // ===== START STRAIGHT =====
-  addSegment(40, 0);
+  function addStraight(length) {
+    for (let i = 0; i < length; i++) {
+      arr.push({
+        z: arr.length * segmentLength,
+        curve: 0,
+        y: 0
+      });
+    }
+  }
 
-  // ===== GENTLE RIGHT =====
-  addSegment(30, 1.5);
+  // ===== START =====
+  addStraight(40);
 
-  // ===== WIDE LEFT HAIRPIN =====
-  addSegment(40, -3);
+  // gentle right
+  addCurve(40, 1.5);
 
-  // ===== SHORT STRAIGHT =====
-  addSegment(20, 0);
+  // wide left hairpin
+  addCurve(60, -3);
 
-  // ===== MEDIUM RIGHT HAIRPIN =====
-  addSegment(35, 3);
+  addStraight(20);
 
-  // ===== MEDIUM STRAIGHT =====
-  addSegment(40, 0);
+  // right hairpin
+  addCurve(50, 3);
 
-  // ===== GENTLE RIGHT =====
-  addSegment(25, 1.5);
+  addStraight(40);
 
-  // ===== SHORT STRAIGHT =====
-  addSegment(20, 0);
+  // gentle right
+  addCurve(30, 1.5);
 
-  // ===== TIGHT RIGHT HAIRPIN =====
-  addSegment(35, 4.5);
+  addStraight(20);
 
-  // ===== MEDIUM LEFT =====
-  addSegment(30, -2);
+  // tight right
+  addCurve(40, 4.5);
 
-  // ===== MEDIUM STRAIGHT =====
-  addSegment(40, 0);
+  // medium left
+  addCurve(40, -2);
 
-  // ===== MEDIUM RIGHT HAIRPIN =====
-  addSegment(35, 3);
+  addStraight(40);
 
-  // ===== MEDIUM LEFT HAIRPIN =====
-  addSegment(35, -3);
+  // right hairpin
+  addCurve(50, 3);
 
-  // ===== FINAL TIGHT RIGHT =====
-  addSegment(25, 5);
+  // left hairpin
+  addCurve(50, -3);
+
+  // final right
+  addCurve(40, 5);
 
   return arr;
 }
