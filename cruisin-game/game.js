@@ -67,7 +67,7 @@ function update() {
   // CURVE EFFECT ON PLAYER
   // This is the magic "cornering feel"
   // --------------------------------
-  playerX -= segment.curve * speed * 0.5;
+  playerX -= segment.curve * speed * 1.5;
 }
 
 // ============================================
