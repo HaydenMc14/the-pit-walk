@@ -17,7 +17,6 @@ canvas.height = window.innerHeight;
 // ===== CORE =====
 let playerX = 0;
 let speed = 0;
-let maxSpeed = 18;
 let roadWidth = 2000;
 let segmentLength = 120;
 let cameraHeight = 1000;
@@ -25,8 +24,9 @@ let cameraDepth = 1 / Math.tan((90/2) * Math.PI/180);
 let position = 0;
 let trackTime = 0;
 
-// ===== CAR =====
-let currentCar = { maxSpeed: 14, color: "#ffd100" };
+// ===== CAR IMAGE =====
+const carImg = new Image();
+carImg.src = "https://i.imgur.com/7Qx6Z6K.png"; // WRX-style sprite
 
 // ===== TRACK =====
 function buildTrack() {
@@ -77,7 +77,7 @@ let keys = {};
 document.addEventListener("keydown", e => keys[e.key] = true);
 document.addEventListener("keyup", e => keys[e.key] = false);
 
-// ===== PROJECT =====
+// ===== PROJECTION =====
 function project(p, cameraX, cameraZ) {
   let dz = p.z - cameraZ;
   if (dz <= 0) return null;
@@ -94,7 +94,6 @@ function project(p, cameraX, cameraZ) {
 
 // ===== BACKGROUND =====
 function drawBackground(curve) {
-
   let sky = ctx.createLinearGradient(0,0,0,canvas.height);
   sky.addColorStop(0,"#4da6ff");
   sky.addColorStop(1,"#87CEEB");
@@ -122,7 +121,6 @@ function drawBackground(curve) {
 
 // ===== ROAD =====
 function drawSegment(p1,p2,i){
-
   let grass = i%2 ? "#2ecc71" : "#27ae60";
   let rumble = i%2 ? "#fff" : "#f00";
 
@@ -157,41 +155,15 @@ function drawSegment(p1,p2,i){
   ctx.fill();
 }
 
-// ===== SCENERY =====
-function drawBillboard(x,y,scale,type){
-
-  const size = scale * 400;
-
-  if(type==="building"){
-    ctx.fillStyle="#888";
-    ctx.fillRect(x-size*0.5,y-size,size,size);
-  }
-
-  if(type==="sign"){
-    ctx.fillStyle="#fff";
-    ctx.fillRect(x-size*0.4,y-size*0.4,size*0.8,size*0.25);
-    ctx.fillStyle="#000";
-    ctx.font = `${size*0.15}px Arial`;
-    ctx.fillText("MALLALA", x-size*0.3, y-size*0.2);
-  }
-
-  if(type==="stand"){
-    ctx.fillStyle="#555";
-    ctx.fillRect(x-size*0.7,y-size*0.5,size*1.4,size*0.3);
-  }
-}
-
 // ===== UPDATE =====
 function update(){
-
   if(keys["ArrowUp"]) speed += 0.4;
   if(keys["ArrowDown"]) speed -= 0.3;
 
-  speed = Math.max(0,Math.min(currentCar.maxSpeed,speed));
+  speed = Math.max(0,Math.min(14,speed));
 
-  // smoother steering
-  if(keys["ArrowLeft"]) playerX -= 0.03 * speed;
-  if(keys["ArrowRight"]) playerX += 0.03 * speed;
+  if(keys["ArrowLeft"]) playerX -= 0.03*speed;
+  if(keys["ArrowRight"]) playerX += 0.03*speed;
 
   if(Math.abs(playerX)>1.2) speed *= 0.95;
 
@@ -201,7 +173,7 @@ function update(){
   let look = road[(base+10)%road.length];
   let corner = Math.abs(look.curve);
 
-  if(corner>2 && speed>currentCar.maxSpeed*0.6){
+  if(corner>2 && speed>10){
     speed -= corner*0.3;
     playerX -= look.curve*0.008*speed;
   }
@@ -246,29 +218,23 @@ function render(){
     if(!proj1 || !proj2) continue;
     if(proj1.y>=maxY) continue;
 
-    // draw road first
     drawSegment(proj1,proj2,i);
-
-    // draw objects AFTER road so they are visible
-    if(i%25===0){
-      drawBillboard(proj1.x - proj1.w - 150, proj1.y, proj1.scale,"building");
-      drawBillboard(proj1.x + proj1.w + 150, proj1.y, proj1.scale,"building");
-    }
-
-    if(i%40===0){
-      drawBillboard(proj1.x + proj1.w + 250, proj1.y, proj1.scale,"sign");
-    }
-
-    if(i%60===0){
-      drawBillboard(proj1.x - proj1.w - 250, proj1.y, proj1.scale,"stand");
-    }
-
     maxY = proj1.y;
   }
 
-  ctx.fillStyle=currentCar.color;
-  ctx.fillRect(canvas.width/2-25+playerX*200,canvas.height-100,50,80);
+  // ===== CAR SPRITE =====
+  let carX = canvas.width/2 + playerX*200;
+  let carY = canvas.height - 140;
 
+  ctx.save();
+  ctx.translate(carX, carY);
+  ctx.rotate(-playerX * 0.3);
+
+  ctx.drawImage(carImg, -40, -70, 80, 140);
+
+  ctx.restore();
+
+  // HUD
   ctx.fillStyle="#fff";
   ctx.font="20px Arial";
   ctx.fillText("Time: "+Math.floor(trackTime),20,30);
