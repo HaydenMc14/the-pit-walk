@@ -109,21 +109,24 @@ drawRoad(baseX - camX, y, width, segment, i);
 function drawRoad(x, y, width, segment, index) {
   let rumble = width * segment.rumbleWidth;
 
+  // Make rumble BIGGER and more visible
+  rumble = Math.max(rumble, 6);
+
   // Alternate rumble color
   let rumbleColor = (Math.floor(index / segment.rumbleLength) % 2)
     ? "red"
     : "white";
 
+  // ROAD FIRST
+  ctx.fillStyle = "#555";
+  ctx.fillRect(x - width / 2, y, width, 12);
+
   // LEFT RUMBLE
   ctx.fillStyle = rumbleColor;
-  ctx.fillRect(x - width / 2 - rumble, y, rumble, 10);
+  ctx.fillRect(x - width / 2 - rumble, y, rumble, 12);
 
   // RIGHT RUMBLE
-  ctx.fillRect(x + width / 2, y, rumble, 10);
-
-  // ROAD
-  ctx.fillStyle = "#555";
-  ctx.fillRect(x - width / 2, y, width, 10);
+  ctx.fillRect(x + width / 2, y, rumble, 12);
 }
 
 // ============================================
