@@ -114,8 +114,8 @@ function drawRoad(x, y, width, segment, index) {
 
   // Alternate rumble color
   let rumbleColor = (Math.floor(index / segment.rumbleLength) % 2)
-    ? "red"
-    : "white";
+    ? "#ff0000"
+    : "#ffffff"
 
   // ROAD FIRST
   ctx.fillStyle = "#555";
