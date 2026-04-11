@@ -14,7 +14,7 @@ const ctx = canvas.getContext("2d");
 canvas.width = window.innerWidth;
 canvas.height = window.innerHeight;
 
-// ===== CORE VARIABLES =====
+// ===== CORE =====
 let playerX = 0;
 let speed = 0;
 let maxSpeed = 20;
@@ -35,99 +35,54 @@ const cars = [
   { name: "Circuit Car", maxSpeed: 14, color: "#ffd100" }
 ];
 
-// ===== TRACKS =====
+// ===== TRACK =====
 const tracks = [
-  {
-    name: "Mallala",
+{
+name: "Mallala",
 build: () => {
   let arr = [];
 
-function addCurve(length, maxCurve, hill = 0, camber = 0) {
-  for (let i = 0; i < length; i++) {
-    let progress = i / length;
-
-    // smooth curve
-    let curve = Math.sin(progress * Math.PI) * maxCurve;
-
-    // smooth hill (up then down)
-    let y = Math.sin(progress * Math.PI) * hill;
-
-    // camber follows curve shape
-    let tilt = Math.sin(progress * Math.PI) * camber;
-
-    arr.push({
-      z: arr.length * segmentLength,
-      curve: curve,
-      y: y,
-      tilt: tilt
-    });
-  }
-}
-
-function addStraight(length, hill = 0) {
-  for (let i = 0; i < length; i++) {
-    arr.push({
-      z: arr.length * segmentLength,
-      curve: 0,
-      y: hill,
-      tilt: 0
-    });
-  }
-}
-
-  // ===== START =====
-addStraight(40);
-
-// gentle right (slight camber)
-addCurve(40, 1.5, 0, 0.3);
-
-// wide left hairpin (banked)
-addCurve(60, -3, 0, -0.5);
-
-addStraight(40);
-
-// right hairpin
-addCurve(50, 3, 0, 0.5);
-
-addStraight(60);
-
-// Turn 4 — gentle rise then fall
-addCurve(40, 1.5, 200, 0.2);
-
-addStraight(40);
-
-// tight right
-addCurve(40, 4.5, 0, 0.6);
-
-// flowing section
-addCurve(40, -2, 0, -0.3);
-
-addStraight(60);
-
-// right hairpin
-addCurve(50, 3, 0, 0.5);
-
-// left hairpin
-addCurve(50, -3, 0, -0.5);
-
-// final corner
-addCurve(40, 5, 0, 0.7);
-  return arr;
-}
-  },
-  {
-    name: "The Bend",
-    build: () => {
-      let arr = [];
-      for (let i = 0; i < 500; i++) {
-        arr.push({
-          z: i * segmentLength,
-          curve: Math.sin(i * 0.08) * 4
-        });
-      }
-      return arr;
+  function addCurve(length, maxCurve, hill = 0, camber = 0) {
+    for (let i = 0; i < length; i++) {
+      let p = i / length;
+      arr.push({
+        z: arr.length * segmentLength,
+        curve: Math.sin(p * Math.PI) * maxCurve,
+        y: Math.sin(p * Math.PI) * hill,
+        tilt: Math.sin(p * Math.PI) * camber
+      });
     }
   }
+
+  function addStraight(length) {
+    for (let i = 0; i < length; i++) {
+      arr.push({
+        z: arr.length * segmentLength,
+        curve: 0,
+        y: 0,
+        tilt: 0
+      });
+    }
+  }
+
+  addStraight(40);
+  addCurve(40, 1.5, 0, 0.3);
+  addCurve(60, -3, 0, -0.5);
+  addStraight(40);
+  addCurve(50, 3, 0, 0.5);
+  addStraight(60);
+  addCurve(40, 1.5, 200, 0.2);
+  addStraight(40);
+  addCurve(40, 4.5, 0, 0.6);
+  addCurve(40, -2, 0, -0.3);
+  addStraight(60);
+  addCurve(50, 3, 0, 0.5);
+  addCurve(50, -3, 0, -0.5);
+  addCurve(40, 5, 0, 0.7);
+
+  return arr;
+}
+}
 ];
 
 // ===== INPUT =====
@@ -139,9 +94,13 @@ document.addEventListener("keyup", e => keys[e.key] = false);
 let road = tracks[0].build();
 let currentCar = cars[0];
 
-// ===== PROJECTION =====
+// ===== PROJECT =====
 function project(p, cameraX, cameraY, cameraZ) {
-  let scale = cameraDepth / (p.z - cameraZ);
+  let dz = p.z - cameraZ;
+  if (dz <= 0) return null;
+
+  let scale = cameraDepth / dz;
+
   return {
     x: (1 + scale * (p.x - cameraX)) * canvas.width / 2,
     y: (1 - scale * (p.y - cameraY)) * canvas.height / 2,
@@ -149,30 +108,30 @@ function project(p, cameraX, cameraY, cameraZ) {
   };
 }
 
-// ===== DRAW ROAD =====
-function drawSegment(p1, p2, index) {
-  let grassColor = (index % 2 === 0) ? "#2ecc71" : "#27ae60";
-  let rumbleColor = (index % 2 === 0) ? "#ff0000" : "#ffffff";
+// ===== DRAW =====
+function drawSegment(p1, p2, i) {
 
-  ctx.fillStyle = grassColor;
+  let grass = i % 2 ? "#2ecc71" : "#27ae60";
+  let rumble = i % 2 ? "#fff" : "#f00";
+
+  ctx.fillStyle = grass;
   ctx.fillRect(0, p2.y, canvas.width, p1.y - p2.y);
 
-  let rumbleWidth1 = p1.w * 1.2;
-  let rumbleWidth2 = p2.w * 1.2;
+  let rw1 = p1.w * 1.2;
+  let rw2 = p2.w * 1.2;
 
-  ctx.fillStyle = rumbleColor;
-
+  ctx.fillStyle = rumble;
   ctx.beginPath();
-  ctx.moveTo(p1.x - rumbleWidth1, p1.y);
+  ctx.moveTo(p1.x - rw1, p1.y);
   ctx.lineTo(p1.x - p1.w, p1.y);
   ctx.lineTo(p2.x - p2.w, p2.y);
-  ctx.lineTo(p2.x - rumbleWidth2, p2.y);
+  ctx.lineTo(p2.x - rw2, p2.y);
   ctx.fill();
 
   ctx.beginPath();
   ctx.moveTo(p1.x + p1.w, p1.y);
-  ctx.lineTo(p1.x + rumbleWidth1, p1.y);
-  ctx.lineTo(p2.x + rumbleWidth2, p2.y);
+  ctx.lineTo(p1.x + rw1, p1.y);
+  ctx.lineTo(p2.x + rw2, p2.y);
   ctx.lineTo(p2.x + p2.w, p2.y);
   ctx.fill();
 
@@ -185,35 +144,9 @@ function drawSegment(p1, p2, index) {
   ctx.fill();
 }
 
-// ===== SCENERY =====
-function drawSprite(x, y, scale, type) {
-  const size = scale * 200;
-
-  if (type === "tree") {
-    ctx.fillStyle = "#8e5a2b";
-    ctx.fillRect(x - size*0.1, y - size*0.5, size*0.2, size*0.5);
-
-    ctx.fillStyle = "#2ecc71";
-    ctx.beginPath();
-    ctx.arc(x, y - size*0.6, size*0.4, 0, Math.PI*2);
-    ctx.fill();
-  }
-}
-
-// ===== TRACK SWITCH =====
-function nextTrack() {
-  currentTrackIndex = (currentTrackIndex + 1) % tracks.length;
-
-  road = tracks[currentTrackIndex].build();
-  currentCar = cars[currentTrackIndex % cars.length];
-
-  position = 0;
-  trackTime = 0;
-  inTransition = false;
-}
-
 // ===== UPDATE =====
 function update() {
+
   if (keys["ArrowUp"]) speed += 0.4;
   if (keys["ArrowDown"]) speed -= 0.3;
 
@@ -222,86 +155,91 @@ function update() {
 
   if (keys["ArrowLeft"]) playerX -= 0.05 * speed;
   if (keys["ArrowRight"]) playerX += 0.05 * speed;
-if (Math.abs(playerX) > 1.2) {
-  speed *= 0.95; // slow down off track
-}
-  position += speed;
-let baseSegment = Math.floor(position / segmentLength);
-let lookAhead = road[(baseSegment + 10) % road.length];
 
-let cornerStrength = Math.abs(lookAhead.curve);
-  if (cornerStrength > 2 && speed > maxSpeed * 0.6) {
-  speed -= cornerStrength * 0.3;
-    playerX -= lookAhead.curve * 0.01 * speed;
-}
+  if (Math.abs(playerX) > 1.2) speed *= 0.95;
+
+  position += speed;
+
+  let base = Math.floor(position / segmentLength);
+  let look = road[(base + 10) % road.length];
+  let corner = Math.abs(look.curve);
+
+  if (corner > 2 && speed > maxSpeed * 0.6) {
+    speed -= corner * 0.3;
+    playerX -= look.curve * 0.01 * speed;
+  }
+
   if (!inTransition) {
     trackTime += 1/60;
-    if (trackTime >= 30) {
+    if (trackTime > 30) {
       inTransition = true;
       transitionTime = 0;
     }
   } else {
     transitionTime += 1/60;
-    if (transitionTime >= 5) nextTrack();
+    if (transitionTime > 5) {
+      position = 0;
+      trackTime = 0;
+      inTransition = false;
+    }
   }
 }
-let cameraOffset = 0;
+
+// ===== CAMERA =====
+let camOffset = 0;
+
 // ===== RENDER =====
 function render() {
 
   if (inTransition) {
     ctx.fillStyle = "black";
     ctx.fillRect(0,0,canvas.width,canvas.height);
-
     ctx.fillStyle = "#ffd100";
     ctx.font = "40px Arial";
     ctx.textAlign = "center";
-    ctx.fillText(
-      "Driving to " + tracks[(currentTrackIndex+1)%tracks.length].name,
-      canvas.width/2,
-      canvas.height/2
-    );
+    ctx.fillText("Next Section", canvas.width/2, canvas.height/2);
     return;
   }
 
   ctx.fillStyle = "#87CEEB";
   ctx.fillRect(0,0,canvas.width,canvas.height);
 
-  let baseSegment = Math.floor(position / segmentLength);
-  let basePercent = (position % segmentLength) / segmentLength;
-let curveSum = 0;
+  let base = Math.floor(position / segmentLength);
+  let percent = (position % segmentLength) / segmentLength;
 
-for (let i = 0; i < 20; i++) {
-  curveSum += road[(baseSegment + i) % road.length].curve;
-}
-tiltAmount += (curveSum * 0.05 - tiltAmount) * 0.1;
-canvas.style.transform = `rotate(${tiltAmount}deg)`;
-  
-cameraOffset += (lookAhead.curve * 1500 - cameraOffset) * 0.1;
-let cameraX = playerX * roadWidth + cameraOffset;
+  let curveSum = 0;
+  for (let i=0;i<20;i++) {
+    curveSum += road[(base+i)%road.length].curve;
+  }
+
+  camOffset += (curveSum * 50 - camOffset) * 0.1;
+
+  let cameraX = playerX * roadWidth + camOffset;
   let cameraZ = position;
 
   let maxY = canvas.height;
 
-  for (let i = 0; i < 300; i++) {
-    let curr = road[(baseSegment+i)%road.length];
-    let next = road[(baseSegment+i+1)%road.length];
+  for (let i=0;i<300;i++) {
 
-    let p1 = { x: curr.curve * roadWidth + (curr.tilt || 0) * 200, y: curr.y, z: curr.z - basePercent*segmentLength };
-    let p2 = { x: next.curve * roadWidth + (next.tilt || 0) * 200, y: next.y, z: next.z - basePercent*segmentLength };
+    let curr = road[(base+i)%road.length];
+    let next = road[(base+i+1)%road.length];
 
-    if (p1.z <= cameraZ || p2.z <= cameraZ) continue;
+    let p1 = {
+      x: curr.curve*roadWidth + (curr.tilt||0)*200,
+      y: curr.y,
+      z: curr.z - percent*segmentLength
+    };
 
-    let proj1 = project(p1, cameraX, cameraHeight, cameraZ);
-    let proj2 = project(p2, cameraX, cameraHeight, cameraZ);
+    let p2 = {
+      x: next.curve*roadWidth + (next.tilt||0)*200,
+      y: next.y,
+      z: next.z - percent*segmentLength
+    };
 
-    let scale = proj1.w / (roadWidth * canvas.width / 2);
+    let proj1 = project(p1,cameraX,cameraHeight,cameraZ);
+    let proj2 = project(p2,cameraX,cameraHeight,cameraZ);
 
-    if (i % 20 === 0) {
-      drawSprite(proj1.x - proj1.w - 100, proj1.y, scale, "tree");
-      drawSprite(proj1.x + proj1.w + 100, proj1.y, scale, "tree");
-    }
-
+    if (!proj1 || !proj2) continue;
     if (proj1.y >= maxY) continue;
 
     drawSegment(proj1, proj2, i);
@@ -309,22 +247,21 @@ let cameraX = playerX * roadWidth + cameraOffset;
   }
 
   ctx.fillStyle = currentCar.color;
-  ctx.fillRect(canvas.width/2 - 25 + playerX*200, canvas.height-100, 50, 80);
+  ctx.fillRect(canvas.width/2-25+playerX*200, canvas.height-100, 50, 80);
 
   ctx.fillStyle = "#fff";
   ctx.font = "20px Arial";
-  ctx.fillText("Track: " + tracks[currentTrackIndex].name, 20, 30);
-  ctx.fillText("Time: " + Math.floor(trackTime), 20, 60);
+  ctx.fillText("Time: " + Math.floor(trackTime), 20, 30);
 }
 
 // ===== LOOP =====
-function loop() {
+function loop(){
   update();
   render();
   requestAnimationFrame(loop);
 }
-
 loop();
+
 </script>
 
 </body>
