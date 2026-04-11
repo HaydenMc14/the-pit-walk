@@ -236,7 +236,7 @@ function update() {
     if (transitionTime >= 5) nextTrack();
   }
 }
-
+let cameraOffset = 0;
 // ===== RENDER =====
 function render() {
 
@@ -260,8 +260,10 @@ function render() {
 
   let baseSegment = Math.floor(position / segmentLength);
   let basePercent = (position % segmentLength) / segmentLength;
+  let lookAhead = road[(baseSegment + 20) % road.length];
 
-  let cameraX = playerX * roadWidth;
+cameraOffset += (lookAhead.curve * 1500 - cameraOffset) * 0.1;
+let cameraX = playerX * roadWidth + cameraOffset;
   let cameraZ = position;
 
   let maxY = canvas.height;
