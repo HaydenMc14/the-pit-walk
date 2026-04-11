@@ -17,6 +17,7 @@ canvas.height = window.innerHeight;
 // ===== CORE =====
 let playerX = 0;
 let speed = 0;
+let maxSpeed = 20;
 let roadWidth = 2000;
 let segmentLength = 120;
 let cameraHeight = 1000;
@@ -24,9 +25,9 @@ let cameraDepth = 1 / Math.tan((90/2) * Math.PI/180);
 let position = 0;
 let trackTime = 0;
 
-// ===== CAR IMAGE =====
+// ===== CAR IMAGE (RELIABLE) =====
 const carImg = new Image();
-carImg.src = "https://i.imgur.com/7Qx6Z6K.png"; // WRX-style sprite
+carImg.src = "https://raw.githubusercontent.com/jakesgordon/javascript-racer/master/images/player.png";
 
 // ===== TRACK =====
 function buildTrack() {
@@ -77,7 +78,7 @@ let keys = {};
 document.addEventListener("keydown", e => keys[e.key] = true);
 document.addEventListener("keyup", e => keys[e.key] = false);
 
-// ===== PROJECTION =====
+// ===== PROJECT =====
 function project(p, cameraX, cameraZ) {
   let dz = p.z - cameraZ;
   if (dz <= 0) return null;
@@ -94,6 +95,7 @@ function project(p, cameraX, cameraZ) {
 
 // ===== BACKGROUND =====
 function drawBackground(curve) {
+
   let sky = ctx.createLinearGradient(0,0,0,canvas.height);
   sky.addColorStop(0,"#4da6ff");
   sky.addColorStop(1,"#87CEEB");
@@ -121,6 +123,7 @@ function drawBackground(curve) {
 
 // ===== ROAD =====
 function drawSegment(p1,p2,i){
+
   let grass = i%2 ? "#2ecc71" : "#27ae60";
   let rumble = i%2 ? "#fff" : "#f00";
 
@@ -157,6 +160,7 @@ function drawSegment(p1,p2,i){
 
 // ===== UPDATE =====
 function update(){
+
   if(keys["ArrowUp"]) speed += 0.4;
   if(keys["ArrowDown"]) speed -= 0.3;
 
@@ -226,13 +230,13 @@ function render(){
   let carX = canvas.width/2 + playerX*200;
   let carY = canvas.height - 140;
 
-  ctx.save();
-  ctx.translate(carX, carY);
-  ctx.rotate(-playerX * 0.3);
-
-  ctx.drawImage(carImg, -40, -70, 80, 140);
-
-  ctx.restore();
+  if (carImg.complete) {
+    ctx.save();
+    ctx.translate(carX, carY);
+    ctx.rotate(-playerX * 0.3);
+    ctx.drawImage(carImg, -40, -70, 80, 140);
+    ctx.restore();
+  }
 
   // HUD
   ctx.fillStyle="#fff";
