@@ -17,21 +17,34 @@ canvas.height = window.innerHeight;
 // ===== CORE =====
 let playerX = 0;
 let speed = 0;
-let maxSpeed = 20;
+let maxSpeed = 25;
 let roadWidth = 2000;
 let segmentLength = 120;
 let cameraHeight = 1000;
 let cameraDepth = 1 / Math.tan((90/2) * Math.PI/180);
 let position = 0;
-
 let trackTime = 0;
 
-// ===== CAR =====
-let currentCar = { maxSpeed: 14, color: "#ffd100" };
+// ===== SIMPLE BUILT-IN CAR (NO IMAGE) =====
+function drawCar(x, y) {
+  ctx.fillStyle = "#1e90ff"; // WRX blue
 
-// ===== CAR SPRITE =====
-const carImg = new Image();
-carImg.src = "https://raw.githubusercontent.com/jakesgordon/javascript-racer/master/images/player.png";
+  // body
+  ctx.fillRect(x - 30, y - 60, 60, 120);
+
+  // roof
+  ctx.fillStyle = "#1565c0";
+  ctx.fillRect(x - 20, y - 90, 40, 40);
+
+  // windshield
+  ctx.fillStyle = "#aeefff";
+  ctx.fillRect(x - 15, y - 80, 30, 20);
+
+  // headlights
+  ctx.fillStyle = "#fff";
+  ctx.fillRect(x - 20, y - 60, 10, 10);
+  ctx.fillRect(x + 10, y - 60, 10, 10);
+}
 
 // ===== TRACK =====
 function buildTrack() {
@@ -104,51 +117,14 @@ function drawBackground(curve) {
 
   ctx.fillStyle = sky;
   ctx.fillRect(0,0,canvas.width,canvas.height);
-
-  ctx.fillStyle = "#2c3e50";
-
-  let baseY = canvas.height * 0.4;
-  let offset = curve * 0.2;
-
-  ctx.beginPath();
-  ctx.moveTo(0, baseY);
-
-  for (let i=0;i<canvas.width;i+=100){
-    let y = Math.sin(i*0.01 + offset) * 40 + baseY;
-    ctx.lineTo(i,y);
-  }
-
-  ctx.lineTo(canvas.width,canvas.height);
-  ctx.lineTo(0,canvas.height);
-  ctx.fill();
 }
 
 // ===== ROAD =====
 function drawSegment(p1,p2,i){
   let grass = i%2 ? "#2ecc71" : "#27ae60";
-  let rumble = i%2 ? "#fff" : "#f00";
 
   ctx.fillStyle = grass;
   ctx.fillRect(0,p2.y,canvas.width,p1.y-p2.y);
-
-  let rw1 = p1.w*1.2;
-  let rw2 = p2.w*1.2;
-
-  ctx.fillStyle = rumble;
-
-  ctx.beginPath();
-  ctx.moveTo(p1.x-rw1,p1.y);
-  ctx.lineTo(p1.x-p1.w,p1.y);
-  ctx.lineTo(p2.x-p2.w,p2.y);
-  ctx.lineTo(p2.x-rw2,p2.y);
-  ctx.fill();
-
-  ctx.beginPath();
-  ctx.moveTo(p1.x+p1.w,p1.y);
-  ctx.lineTo(p1.x+rw1,p1.y);
-  ctx.lineTo(p2.x+rw2,p2.y);
-  ctx.lineTo(p2.x+p2.w,p2.y);
-  ctx.fill();
 
   ctx.fillStyle = "#444";
   ctx.beginPath();
@@ -162,26 +138,17 @@ function drawSegment(p1,p2,i){
 // ===== UPDATE =====
 function update(){
 
-  if(keys["ArrowUp"]) speed += 0.4;
-  if(keys["ArrowDown"]) speed -= 0.3;
+  if(keys["ArrowUp"]) speed += 0.5;
+  if(keys["ArrowDown"]) speed -= 0.4;
 
-  speed = Math.max(0,Math.min(currentCar.maxSpeed,speed));
+  speed = Math.max(0,Math.min(maxSpeed,speed));
 
-  if(keys["ArrowLeft"]) playerX -= 0.03*speed;
-  if(keys["ArrowRight"]) playerX += 0.03*speed;
+  if(keys["ArrowLeft"]) playerX -= 0.04*speed;
+  if(keys["ArrowRight"]) playerX += 0.04*speed;
 
   if(Math.abs(playerX)>1.2) speed *= 0.95;
 
   position += speed;
-
-  let base = Math.floor(position/segmentLength);
-  let look = road[(base+10)%road.length];
-  let corner = Math.abs(look.curve);
-
-  if(corner>2 && speed>currentCar.maxSpeed*0.6){
-    speed -= corner*0.3;
-    playerX -= look.curve*0.008*speed;
-  }
 
   trackTime += 1/60;
 }
@@ -202,7 +169,7 @@ function render(){
 
   drawBackground(curveSum);
 
-  camOffset += (curveSum*30 - camOffset)*0.08;
+  camOffset += (curveSum*20 - camOffset)*0.1;
 
   let cameraX = playerX*roadWidth + camOffset;
   let cameraZ = position;
@@ -212,61 +179,4 @@ function render(){
   for(let i=0;i<300;i++){
 
     let curr = road[(base+i)%road.length];
-    let next = road[(base+i+1)%road.length];
-
-    let p1 = { x: curr.curve*roadWidth, y: curr.y, z: curr.z - percent*segmentLength };
-    let p2 = { x: next.curve*roadWidth, y: next.y, z: next.z - percent*segmentLength };
-
-    let proj1 = project(p1,cameraX,cameraZ);
-    let proj2 = project(p2,cameraX,cameraZ);
-
-    if(!proj1 || !proj2) continue;
-    if(proj1.y>=maxY) continue;
-
-    drawSegment(proj1,proj2,i);
-    maxY = proj1.y;
-  }
-
-  // ===== CAR =====
-  let carX = canvas.width/2 + playerX*200;
-  let carY = canvas.height - 140;
-
-  if (carImg.complete) {
-    ctx.save();
-    ctx.translate(carX, carY);
-    ctx.rotate(-playerX * 0.3);
-    ctx.drawImage(carImg, -40, -70, 80, 140);
-    ctx.restore();
-  }
-
-  // ===== SPEEDOMETER =====
-  let speedKmh = Math.floor((speed / currentCar.maxSpeed) * 200);
-
-  ctx.fillStyle = "#000";
-  ctx.fillRect(canvas.width - 180, canvas.height - 80, 160, 60);
-
-  ctx.strokeStyle = "#ffd100";
-  ctx.strokeRect(canvas.width - 180, canvas.height - 80, 160, 60);
-
-  ctx.fillStyle = "#ffd100";
-  ctx.font = "20px Arial";
-  ctx.textAlign = "right";
-  ctx.fillText(speedKmh + " km/h", canvas.width - 30, canvas.height - 40);
-
-  // HUD
-  ctx.fillStyle="#fff";
-  ctx.textAlign="left";
-  ctx.fillText("Time: "+Math.floor(trackTime),20,30);
-}
-
-// ===== LOOP =====
-function loop(){
-  update();
-  render();
-  requestAnimationFrame(loop);
-}
-loop();
-</script>
-
-</body>
-</html>
+    let
