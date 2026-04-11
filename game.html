@@ -261,7 +261,8 @@ function render() {
   let baseSegment = Math.floor(position / segmentLength);
   let basePercent = (position % segmentLength) / segmentLength;
   let lookAhead = road[(baseSegment + 20) % road.length];
-
+canvas.style.transform = `rotate(${lookAhead.curve * 2}deg)`;
+  
 cameraOffset += (lookAhead.curve * 1500 - cameraOffset) * 0.1;
 let cameraX = playerX * roadWidth + cameraOffset;
   let cameraZ = position;
