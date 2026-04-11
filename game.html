@@ -16,7 +16,7 @@ canvas.height = window.innerHeight;
 
 let playerX = 0;
 let speed = 0;
-let maxSpeed = 10;
+let maxSpeed = currentCar.maxSpeed;
 let roadWidth = 2000;
 let segmentLength = 200;
 let cameraHeight = 1000;
@@ -67,7 +67,7 @@ document.addEventListener("keyup", e => keys[e.key] = false);
 
 // Road definition
 let road = tracks[0].build();
-let currentCar = cars[0]; {
+let currentCar = cars[0];
   road.push({
     z: i * segmentLength,
     curve: Math.sin(i * 0.05) * 2 // curves!
@@ -136,6 +136,16 @@ function drawSegment(p1, p2, index) {
 }
 
 function update() {
+function nextTrack() {
+  currentTrackIndex = (currentTrackIndex + 1) % tracks.length;
+
+  road = tracks[currentTrackIndex].build();
+  currentCar = cars[currentTrackIndex % cars.length];
+
+  position = 0;
+  trackTime = 0;
+  inTransition = false;
+}
   // Controls
   if (keys["ArrowUp"]) speed += 0.2;
   if (keys["ArrowDown"]) speed -= 0.3;
@@ -146,6 +156,21 @@ function update() {
   if (keys["ArrowRight"]) playerX += 0.05 * speed;
 
   position += speed;
+  // Track timing
+if (!inTransition) {
+  trackTime += 1/60;
+
+  if (trackTime >= 30) {
+    inTransition = true;
+    transitionTime = 0;
+  }
+} else {
+  transitionTime += 1/60;
+
+  if (transitionTime >= 5) {
+    nextTrack();
+  }
+}
 }
 function drawSprite(x, y, scale, type) {
 
@@ -169,6 +194,28 @@ function drawSprite(x, y, scale, type) {
   }
 }
 function render() {
+ if (inTransition) {
+  ctx.fillStyle = "black";
+  ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+  ctx.fillStyle = "#ffd100";
+  ctx.font = "40px Arial";
+  ctx.textAlign = "center";
+
+  ctx.fillText(
+    "Driving to " + tracks[(currentTrackIndex + 1) % tracks.length].name,
+    canvas.width / 2,
+    canvas.height / 2
+  );
+
+  return;
+ctx.fillStyle = "#fff";
+ctx.font = "20px Arial";
+ctx.textAlign = "left";
+
+ctx.fillText("Track: " + tracks[currentTrackIndex].name, 20, 30);
+ctx.fillText("Time: " + Math.floor(trackTime), 20, 60);
+ }
   ctx.fillStyle = "#87CEEB"; // sky
   ctx.fillRect(0, 0, canvas.width, canvas.height);
 
@@ -230,7 +277,8 @@ drawSegment(proj1, proj2, i);
 }
 
 function loop() {
-  update();
+  update()
+    maxSpeed = currentCar.maxSpeed;;
   render();
   requestAnimationFrame(loop);
 }
