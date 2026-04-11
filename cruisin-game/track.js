@@ -4,7 +4,12 @@
 // ============================================
 
 const track = [
-
+const track = [
+  { length: 200, curve: 0 },
+  { length: 200, curve: 0.8 },
+  { length: 200, curve: 0 },
+  { length: 200, curve: -0.8 },
+];
   {
     length: 200,
     curve: 0,           // 0 = straight, negative = left, positive = right
