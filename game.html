@@ -222,9 +222,18 @@ function update() {
 
   if (keys["ArrowLeft"]) playerX -= 0.05 * speed;
   if (keys["ArrowRight"]) playerX += 0.05 * speed;
-
+if (Math.abs(playerX) > 1.2) {
+  speed *= 0.95; // slow down off track
+}
   position += speed;
+let baseSegment = Math.floor(position / segmentLength);
+let lookAhead = road[(baseSegment + 10) % road.length];
 
+let cornerStrength = Math.abs(lookAhead.curve);
+  if (cornerStrength > 2 && speed > maxSpeed * 0.6) {
+  speed -= cornerStrength * 0.3;
+    playerX -= lookAhead.curve * 0.01 * speed;
+}
   if (!inTransition) {
     trackTime += 1/60;
     if (trackTime >= 30) {
