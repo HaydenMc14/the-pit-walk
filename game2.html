@@ -1,0 +1,619 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+  <title>🚗 PSEUDO-3D RACER · OUTRUN / CRUIS'N STYLE</title>
+  <style>
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+    }
+    body {
+      background: #0a1f1a;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      min-height: 100vh;
+      font-family: 'Courier New', Courier, monospace;
+    }
+    .game-container {
+      background: #000;
+      border-radius: 12px;
+      box-shadow: 0 20px 40px rgba(0,0,0,0.8), 0 0 0 4px #5f4f3b;
+      padding: 8px;
+    }
+    canvas {
+      display: block;
+      width: 900px;
+      height: 550px;
+      border-radius: 8px;
+      background: #1a2a3a; /* fallback sky */
+      cursor: none;
+    }
+    .hud-overlay {
+      display: none; /* we draw HUD on canvas directly */
+    }
+    .info {
+      text-align: center;
+      margin-top: 10px;
+      color: #ffd78c;
+      font-weight: bold;
+      letter-spacing: 2px;
+      text-shadow: 3px 3px 0 #3a1f00;
+    }
+    .info kbd {
+      background: #2d1e0e;
+      padding: 4px 10px;
+      border-radius: 20px;
+      color: #ffd966;
+      margin: 0 4px;
+      border: 1px solid #c9a76b;
+    }
+  </style>
+</head>
+<body>
+<div>
+  <div class="game-container">
+    <canvas id="gameCanvas" width="900" height="550"></canvas>
+  </div>
+  <div class="info">
+    <kbd>↑</kbd> <kbd>↓</kbd> <kbd>←</kbd> <kbd>→</kbd> &nbsp;&nbsp;|&nbsp;&nbsp; <kbd>W</kbd> <kbd>S</kbd> <kbd>A</kbd> <kbd>D</kbd> &nbsp;&nbsp;|&nbsp;&nbsp; 🏁 DRIFT · SURVIVE
+  </div>
+</div>
+
+<script>
+  (function(){
+    "use strict";
+
+    // ---------- CANVAS & CONTEXT ----------
+    const canvas = document.getElementById('gameCanvas');
+    const ctx = canvas.getContext('2d');
+    const W = 900, H = 550;
+    const HORIZON_Y = 190;        // where sky meets road (pixels from top)
+
+    // ---------- FIXED TIMESTEP ----------
+    const FIXED_DT = 1/60;         // 60 fps physics
+    let accumulator = 0;
+    let lastTimestamp = 0;
+    let gameActive = true;
+    let gameOver = false;
+    let winFlag = false;
+
+    // ---------- TRACK PARAMETERS ----------
+    const SEGMENT_LENGTH = 180;      // world units per segment
+    const ROAD_WIDTH = 2200;         // world units (full width)
+    const LANE_WIDTH = ROAD_WIDTH / 3;
+    const CAMERA_HEIGHT = 1200;      // camera y (above road)
+    const CAMERA_DIST = 0.84;        // projection scaling factor
+    
+    // Track data
+    const TRACK_SEGMENTS = 280;       // total segments (loop)
+    let segments = [];
+    
+    // Precomputed world X offset from curves (accumulated)
+    let roadWorldX = new Float32Array(TRACK_SEGMENTS);
+    
+    // Roadside objects (simple trees / signs) - we'll populate later
+    
+    // ---------- PLAYER STATE ----------
+    let player = {
+      segPos: 0.0,            // segment index + fractional offset (0..TRACK_SEGMENTS)
+      x: 0.0,                 // lateral world position (-ROAD_WIDTH/2 .. ROAD_WIDTH/2)
+      dx: 0.0,               // lateral velocity (sliding)
+      speed: 0.0,            // forward speed (world units per second)
+      maxSpeed: 420,
+      accel: 180,
+      brake: 260,
+      turnSpeed: 2.8,
+      grip: 0.92,            // base grip (asphalt)
+      offroadGrip: 0.75
+    };
+
+    // ---------- TIMER & CHECKPOINTS ----------
+    let timer = 75.0;          // seconds
+    const CHECKPOINT_SEGMENTS = [30, 90, 150, 210, 270];
+    let nextCheckpointIndex = 0;
+    const TIME_GAIN = 12.0;    // seconds per checkpoint
+    
+    // ---------- AI TRAFFIC ----------
+    let traffic = [];
+    const TRAFFIC_COUNT = 6;
+    
+    // ---------- INPUT ----------
+    const keys = {
+      ArrowUp: false, ArrowDown: false, ArrowLeft: false, ArrowRight: false,
+      KeyW: false, KeyS: false, KeyA: false, KeyD: false
+    };
+    
+    // ---------- HELPER: TRACK GENERATION (curves, elevation, surface) ----------
+    function buildTrack() {
+      segments = [];
+      // We'll create a varied track: straights, gentle curves, sharp curve + hill, gravel sections
+      for (let i = 0; i < TRACK_SEGMENTS; i++) {
+        let curve = 0.0;
+        let elevation = 0.0;
+        let type = 'asphalt';
+        
+        // --- section patterns (0..279) ---
+        // 0-39: straight, slight elevation rise
+        if (i < 40) {
+          curve = 0.0;
+          elevation = Math.sin(i * 0.12) * 28;
+        }
+        // 40-79: gentle right curve
+        else if (i < 80) {
+          curve = 0.018;
+          elevation = 10 + Math.sin(i * 0.2) * 18;
+        }
+        // 80-119: straight, downhill
+        else if (i < 120) {
+          curve = -0.005;
+          elevation = 40 - (i-80) * 0.5;
+        }
+        // 120-169: sharp left curve with hill + gravel mix
+        else if (i < 170) {
+          curve = -0.042;
+          elevation = 20 + 45 * Math.sin((i-120) * 0.15);
+          type = (i > 140 && i < 160) ? 'gravel' : 'asphalt';
+        }
+        // 170-219: right curve, then gravel section
+        else if (i < 220) {
+          curve = 0.032;
+          elevation = 15 + 30 * Math.cos(i * 0.1);
+          type = (i > 190 && i < 210) ? 'gravel' : 'asphalt';
+        }
+        // 220-279: sweeping left, back to start
+        else {
+          curve = -0.022;
+          elevation = 5 + 20 * Math.sin(i * 0.09);
+          type = 'asphalt';
+        }
+        
+        // add some extra gravel patches for fun
+        if (i > 250 && i < 265) type = 'gravel';
+        
+        segments.push({
+          index: i,
+          curve: curve,            // radians per segment (approx)
+          elevation: elevation,
+          type: type               // 'asphalt' or 'gravel'
+        });
+      }
+      
+      // Precompute accumulated world X offset (due to curves)
+      let accumX = 0;
+      for (let i = 0; i < TRACK_SEGMENTS; i++) {
+        roadWorldX[i] = accumX;
+        // curve contributes to lateral shift: curve * SEGMENT_LENGTH (approx)
+        accumX += segments[i].curve * SEGMENT_LENGTH;
+      }
+      // wrap adjustment not strictly needed, but we keep as is.
+    }
+    
+    // ---------- INIT / RESET GAME ----------
+    function resetGame() {
+      buildTrack();
+      
+      player = {
+        segPos: 2.0,          // start a bit ahead
+        x: 0.0,
+        dx: 0.0,
+        speed: 80.0,
+        maxSpeed: 420,
+        accel: 180,
+        brake: 260,
+        turnSpeed: 2.8,
+        grip: 0.92,
+        offroadGrip: 0.75
+      };
+      
+      timer = 75.0;
+      nextCheckpointIndex = 0;
+      gameOver = false;
+      winFlag = false;
+      gameActive = true;
+      
+      // spawn traffic
+      traffic = [];
+      for (let i = 0; i < TRAFFIC_COUNT; i++) {
+        let seg = (i * 43 + 17) % TRACK_SEGMENTS;
+        let lane = (i % 3 - 1) * LANE_WIDTH * 0.8; // -1,0,1 lanes
+        traffic.push({
+          segPos: seg + 0.3,
+          x: lane,
+          speed: 70 + Math.random() * 80,
+          type: 'car',
+          width: 320,
+          length: 580
+        });
+      }
+    }
+    
+    // ---------- INPUT HANDLERS ----------
+    function handleKeyDown(e) {
+      const code = e.code;
+      if (code in keys) {
+        keys[code] = true;
+        e.preventDefault();
+      }
+      // prevent arrow scrolling
+      if (["ArrowUp","ArrowDown","ArrowLeft","ArrowRight"].includes(e.key)) {
+        e.preventDefault();
+      }
+    }
+    function handleKeyUp(e) {
+      const code = e.code;
+      if (code in keys) {
+        keys[code] = false;
+        e.preventDefault();
+      }
+      if (["ArrowUp","ArrowDown","ArrowLeft","ArrowRight"].includes(e.key)) {
+        e.preventDefault();
+      }
+    }
+    window.addEventListener('keydown', handleKeyDown);
+    window.addEventListener('keyup', handleKeyUp);
+    
+    // ---------- UTILS: get segment & surface properties ----------
+    function getSegmentAt(pos) {
+      let idx = Math.floor(pos);
+      let frac = pos - idx;
+      idx = ((idx % TRACK_SEGMENTS) + TRACK_SEGMENTS) % TRACK_SEGMENTS;
+      return { segment: segments[idx], idx, frac };
+    }
+    
+    function getCurrentSurfaceGrip(pos) {
+      let s = getSegmentAt(pos).segment;
+      return s.type === 'gravel' ? player.offroadGrip : player.grip;
+    }
+    
+    // ---------- FIXED UPDATE (physics) ----------
+    function fixedUpdate(dt) {
+      if (!gameActive || gameOver) return;
+      
+      // ----- input processing -----
+      const up = keys.ArrowUp || keys.KeyW;
+      const down = keys.ArrowDown || keys.KeyS;
+      const left = keys.ArrowLeft || keys.KeyA;
+      const right = keys.ArrowRight || keys.KeyD;
+      
+      // acceleration / brake
+      const surfaceGrip = getCurrentSurfaceGrip(player.segPos);
+      const effectiveAccel = player.accel;
+      const effectiveBrake = player.brake;
+      
+      if (up) {
+        player.speed += effectiveAccel * dt;
+      }
+      if (down) {
+        player.speed -= effectiveBrake * dt;
+      }
+      
+      // natural deceleration (friction)
+      const friction = (surfaceGrip * 0.12) + 0.02;
+      player.speed -= player.speed * friction * dt;
+      
+      // speed limits
+      if (player.speed > player.maxSpeed) player.speed = player.maxSpeed;
+      if (player.speed < 5.0) player.speed = 5.0; // min speed
+      
+      // steering (speed dependent)
+      if (left || right) {
+        const steerDir = (left ? -1 : 0) + (right ? 1 : 0);
+        const turnFactor = Math.min(1.0, player.speed / 280);
+        const turnAmount = steerDir * player.turnSpeed * dt * (0.6 + 0.5 * turnFactor);
+        // apply to lateral velocity (drift / inertia)
+        player.dx += turnAmount * 18.0;
+      }
+      
+      // apply grip (lateral friction)
+      const gripFactor = surfaceGrip;
+      player.dx *= (1.0 - gripFactor * 2.2 * dt);
+      
+      // update lateral position
+      player.x += player.dx * dt;
+      // clamp to road edges (allow a little offroad)
+      const maxX = ROAD_WIDTH * 0.7;
+      if (player.x > maxX) { player.x = maxX; player.dx *= -0.2; }
+      if (player.x < -maxX) { player.x = -maxX; player.dx *= -0.2; }
+      
+      // move along track
+      player.segPos += (player.speed / SEGMENT_LENGTH) * dt;
+      // loop track
+      if (player.segPos >= TRACK_SEGMENTS) {
+        player.segPos -= TRACK_SEGMENTS;
+        // reset checkpoint progress if we complete a lap? Not required, but we can.
+        // we keep checkpoint logic based on passing segment indices.
+      }
+      if (player.segPos < 0) player.segPos += TRACK_SEGMENTS;
+      
+      // ----- AI traffic update -----
+      for (let car of traffic) {
+        car.segPos += (car.speed / SEGMENT_LENGTH) * dt;
+        if (car.segPos >= TRACK_SEGMENTS) car.segPos -= TRACK_SEGMENTS;
+        if (car.segPos < 0) car.segPos += TRACK_SEGMENTS;
+      }
+      
+      // ----- collision with traffic (simple) -----
+      const playerSegIdx = Math.floor(player.segPos);
+      const playerFrac = player.segPos - playerSegIdx;
+      for (let car of traffic) {
+        const dist = Math.abs(car.segPos - player.segPos);
+        const minDist = 0.35; // segment units
+        if (dist < minDist || (player.segPos > TRACK_SEGMENTS-1 && car.segPos < 1 && (TRACK_SEGMENTS - player.segPos + car.segPos) < minDist)) {
+          const lateralDiff = Math.abs(car.x - player.x);
+          if (lateralDiff < 480) {
+            // crash: reduce speed
+            player.speed *= 0.82;
+            player.dx += (player.x - car.x) * 0.05;
+            // push car
+            car.segPos += 0.02;
+          }
+        }
+      }
+      
+      // ----- checkpoints & timer -----
+      const currentSeg = Math.floor(player.segPos);
+      if (nextCheckpointIndex < CHECKPOINT_SEGMENTS.length) {
+        const cp = CHECKPOINT_SEGMENTS[nextCheckpointIndex];
+        // passed checkpoint?
+        if (currentSeg >= cp && currentSeg < cp + 8) {
+          timer += TIME_GAIN;
+          nextCheckpointIndex++;
+        }
+      }
+      
+      timer -= dt;
+      if (timer <= 0.0) {
+        timer = 0.0;
+        gameOver = true;
+        gameActive = false;
+      }
+      
+      // simple win condition (survive long enough)
+      if (nextCheckpointIndex >= CHECKPOINT_SEGMENTS.length && timer > 5) {
+        winFlag = true;
+      }
+    }
+    
+    // ---------- RENDERING (pseudo-3D road) ----------
+    function render() {
+      ctx.clearRect(0, 0, W, H);
+      
+      // ---- sky gradient ----
+      const grad = ctx.createLinearGradient(0, 0, 0, HORIZON_Y+40);
+      grad.addColorStop(0, '#0b2b3f');
+      grad.addColorStop(0.7, '#3f7c9f');
+      ctx.fillStyle = grad;
+      ctx.fillRect(0, 0, W, HORIZON_Y+20);
+      
+      // sun / glow
+      ctx.fillStyle = '#f9e0a0';
+      ctx.beginPath();
+      ctx.arc(W*0.7, HORIZON_Y-15, 35, 0, Math.PI*2);
+      ctx.fill();
+      ctx.fillStyle = '#fcd48c';
+      ctx.beginPath();
+      ctx.arc(W*0.7, HORIZON_Y-15, 25, 0, Math.PI*2);
+      ctx.fill();
+      
+      // ---- prepare visible segments (far to near) ----
+      const playerSeg = player.segPos;
+      const baseSegIdx = Math.floor(playerSeg);
+      const drawDistance = 100;  // segments ahead
+      
+      let visibleSegments = [];
+      
+      for (let i = 0; i < drawDistance; i++) {
+        let segIdx = (baseSegIdx + i) % TRACK_SEGMENTS;
+        let seg = segments[segIdx];
+        
+        // world Z distance from player (positive ahead)
+        let z = i * SEGMENT_LENGTH + (player.segPos - baseSegIdx) * SEGMENT_LENGTH;
+        if (z < 20) continue; // too close skip
+        
+        // compute projection scale
+        let scale = CAMERA_DIST / (z + 0.1);
+        let screenY = HORIZON_Y + (CAMERA_HEIGHT - seg.elevation) * scale;
+        
+        // road world X offset (curves)
+        let worldXOffset = roadWorldX[segIdx];
+        // player lateral offset
+        let roadCenterX = W/2 + (worldXOffset - player.x) * scale;
+        
+        let roadWidth = ROAD_WIDTH * scale;
+        
+        visibleSegments.push({
+          seg, z, scale, screenY, roadCenterX, roadWidth,
+          worldXOffset
+        });
+      }
+      
+      // sort back to front (painter's algorithm)
+      visibleSegments.sort((a,b) => b.z - a.z);
+      
+      // ---- draw road segments (grass, road, rumble, lanes) ----
+      for (let v of visibleSegments) {
+        const { seg, scale, screenY, roadCenterX, roadWidth } = v;
+        const leftX = roadCenterX - roadWidth/2;
+        const rightX = roadCenterX + roadWidth/2;
+        const halfW = roadWidth/2;
+        
+        // grass / background
+        ctx.fillStyle = '#1f5c2e';
+        ctx.fillRect(0, screenY-2, W, 12 * scale + 8);
+        
+        // road base (asphalt or gravel color)
+        ctx.fillStyle = seg.type === 'gravel' ? '#9c8e7a' : '#4a4f55';
+        ctx.beginPath();
+        ctx.moveTo(leftX, screenY);
+        ctx.lineTo(rightX, screenY);
+        ctx.lineTo(rightX + 10*scale, screenY + 8*scale);
+        ctx.lineTo(leftX - 10*scale, screenY + 8*scale);
+        ctx.fill();
+        
+        // rumble strips (red/white)
+        const rumbleW = roadWidth * 0.04;
+        ctx.fillStyle = '#c44';
+        ctx.fillRect(leftX - rumbleW, screenY-1, rumbleW, 6*scale+4);
+        ctx.fillRect(rightX, screenY-1, rumbleW, 6*scale+4);
+        ctx.fillStyle = '#eee';
+        ctx.fillRect(leftX - rumbleW*2, screenY, rumbleW, 4*scale);
+        ctx.fillRect(rightX + rumbleW, screenY, rumbleW, 4*scale);
+        
+        // lane markings (dashed)
+        ctx.strokeStyle = '#f8f0d0';
+        ctx.lineWidth = Math.max(2, 4*scale);
+        ctx.setLineDash([20*scale, 30*scale]);
+        ctx.beginPath();
+        ctx.moveTo(roadCenterX, screenY-2);
+        ctx.lineTo(roadCenterX, screenY + 8*scale);
+        ctx.stroke();
+        ctx.setLineDash([]);
+        
+        // edge lines
+        ctx.strokeStyle = '#ddd';
+        ctx.lineWidth = Math.max(1.5, 3*scale);
+        ctx.beginPath();
+        ctx.moveTo(leftX+4, screenY);
+        ctx.lineTo(leftX+4, screenY+6*scale);
+        ctx.stroke();
+        ctx.beginPath();
+        ctx.moveTo(rightX-4, screenY);
+        ctx.lineTo(rightX-4, screenY+6*scale);
+        ctx.stroke();
+      }
+      
+      // ---- draw AI cars (projected) ----
+      for (let car of traffic) {
+        const carSegPos = car.segPos;
+        const dist = carSegPos - player.segPos;
+        let z = dist * SEGMENT_LENGTH;
+        if (z < 30) continue; // too close (or behind)
+        if (z > 9000) continue;
+        
+        let scale = CAMERA_DIST / (z + 0.1);
+        // get segment data for elevation/curve
+        let segIdx = Math.floor(carSegPos) % TRACK_SEGMENTS;
+        let seg = segments[segIdx];
+        let worldXOffset = roadWorldX[segIdx];
+        let screenY = HORIZON_Y + (CAMERA_HEIGHT - seg.elevation) * scale;
+        let screenX = W/2 + (worldXOffset - player.x + car.x) * scale;
+        
+        let carWidth = 320 * scale;
+        let carHeight = 180 * scale;
+        
+        // draw car (retro box)
+        ctx.fillStyle = '#c92a2a';
+        ctx.fillRect(screenX - carWidth/2, screenY - carHeight*0.7, carWidth, carHeight);
+        ctx.fillStyle = '#1e1e2f';
+        ctx.fillRect(screenX - carWidth/2+4, screenY - carHeight*0.5, carWidth-8, carHeight*0.5);
+        ctx.fillStyle = '#f5c542';
+        ctx.fillRect(screenX - carWidth/4, screenY - carHeight*0.9, carWidth/2, 12*scale);
+      }
+      
+      // ---- roadside objects (simple trees/posts) ----
+      for (let v of visibleSegments) {
+        if (v.z < 800 || v.z > 5000) continue;
+        const scale = v.scale;
+        const leftEdge = v.roadCenterX - v.roadWidth/2;
+        const rightEdge = v.roadCenterX + v.roadWidth/2;
+        const yBase = v.screenY;
+        
+        // left side trees
+        if (Math.sin(v.seg.index * 0.7) > 0.3) {
+          ctx.fillStyle = '#2d6a4f';
+          ctx.fillRect(leftEdge - 35*scale, yBase - 70*scale, 12*scale, 60*scale);
+          ctx.fillStyle = '#1b4d35';
+          ctx.beginPath();
+          ctx.arc(leftEdge - 29*scale, yBase - 90*scale, 18*scale, 0, Math.PI*2);
+          ctx.fill();
+        }
+        // right side posts
+        if (Math.cos(v.seg.index) > 0.2) {
+          ctx.fillStyle = '#a57c50';
+          ctx.fillRect(rightEdge + 20*scale, yBase - 45*scale, 8*scale, 45*scale);
+          ctx.fillStyle = '#c99f6c';
+          ctx.beginPath();
+          ctx.arc(rightEdge + 24*scale, yBase - 55*scale, 10*scale, 0, Math.PI*2);
+          ctx.fill();
+        }
+      }
+      
+      // ---- HUD (speed, timer, checkpoint) ----
+      ctx.font = 'bold 26px "Courier New", monospace';
+      ctx.fillStyle = '#f2e8d5';
+      ctx.shadowColor = '#000';
+      ctx.shadowBlur = 10;
+      ctx.fillText(`⚡ ${Math.floor(player.speed * 0.18)} mph`, 30, 60);
+      ctx.font = 'bold 32px monospace';
+      ctx.fillStyle = timer < 15 ? '#ff7060' : '#e0f2b0';
+      ctx.fillText(`⏱️ ${Math.ceil(timer)}`, W-180, 65);
+      
+      ctx.font = '20px monospace';
+      ctx.fillStyle = '#b8d9fc';
+      ctx.fillText(`CHECK: ${nextCheckpointIndex}/${CHECKPOINT_SEGMENTS.length}`, 30, 105);
+      
+      if (segments.length > 0) {
+        let surf = getSegmentAt(player.segPos).segment.type;
+        ctx.fillStyle = surf==='gravel' ? '#cb9e72' : '#a0b0c0';
+        ctx.fillText(`🛞 ${surf.toUpperCase()}`, 30, 140);
+      }
+      
+      ctx.shadowBlur = 0;
+      
+      // game over / win overlay
+      if (gameOver) {
+        ctx.fillStyle = '#000000aa';
+        ctx.fillRect(0, 0, W, H);
+        ctx.font = '48px "Courier New", monospace';
+        ctx.fillStyle = '#f55';
+        ctx.fillText('GAME OVER', W/2-160, H/2);
+      } else if (winFlag) {
+        ctx.fillStyle = '#d4af37';
+        ctx.font = '40px monospace';
+        ctx.fillText('🏆 YOU SURVIVED! 🏆', W/2-220, H/2-20);
+      }
+    }
+    
+    // ---------- GAME LOOP (with fixed timestep) ----------
+    function gameLoop(now) {
+      requestAnimationFrame(gameLoop);
+      
+      if (!lastTimestamp) {
+        lastTimestamp = now;
+        return;
+      }
+      
+      let deltaTime = Math.min(0.03, (now - lastTimestamp) / 1000); // seconds
+      lastTimestamp = now;
+      
+      if (gameActive && !gameOver) {
+        accumulator += deltaTime;
+        while (accumulator >= FIXED_DT) {
+          fixedUpdate(FIXED_DT);
+          accumulator -= FIXED_DT;
+        }
+      }
+      
+      render();
+    }
+    
+    // ---------- START ----------
+    resetGame();
+    requestAnimationFrame(gameLoop);
+    
+    // Optional: restart on R key
+    window.addEventListener('keydown', (e) => {
+      if (e.code === 'KeyR') {
+        resetGame();
+        e.preventDefault();
+      }
+    });
+    
+  })();
+</script>
+</body>
+</html>
