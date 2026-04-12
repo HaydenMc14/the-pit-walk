@@ -376,14 +376,16 @@
         let segIdx = (baseIdx + i) % TRACK_SEGMENTS;
         let seg = segments[segIdx];
         
-        let z = (i - playerPercent) * SEGMENT_LENGTH;
-        if (z <= 0) continue;
+let z = (i - playerPercent) * SEGMENT_LENGTH;
+
+// stable near-plane clamp (small, not 1)
+if (z < 0.1) z = 0.1;
 
         if (i > 0) {
           let prevIdx = (baseIdx + i - 1) % TRACK_SEGMENTS;
           curveSum += segments[prevIdx].curve;
         }
-        let worldOffset = curveSum * SEGMENT_LENGTH * 3.0;
+        let worldOffset = curveSum * SEGMENT_LENGTH * 5.0;
 
         let scale = CAMERA_DIST / z;
         let camY = CAMERA_HEIGHT + (playerSegData.elevation - seg.elevation);
