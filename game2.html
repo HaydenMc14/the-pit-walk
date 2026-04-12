@@ -5,11 +5,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
   <title>🚗 CRUIS'N USA · PSEUDO-3D RACER</title>
   <style>
-    * {
-      margin: 0;
-      padding: 0;
-      box-sizing: border-box;
-    }
+    * { margin: 0; padding: 0; box-sizing: border-box; }
     body {
       background: #0b1b1a;
       display: flex;
@@ -68,7 +64,7 @@
     const canvas = document.getElementById('gameCanvas');
     const ctx = canvas.getContext('2d');
     const W = 900, H = 550;
-    const HORIZON_Y = 170;          // where sky meets road (pixels from top)
+    const HORIZON_Y = 170;          // horizon line (pixels from top)
 
     // ---------- FIXED TIMESTEP ----------
     const FIXED_DT = 1/60;
@@ -82,8 +78,8 @@
     const SEGMENT_LENGTH = 200;
     const ROAD_WIDTH = 2400;
     const LANE_WIDTH = ROAD_WIDTH / 3;
-    const CAMERA_HEIGHT = 1800;      // camera height above road (in world units)
-    const CAMERA_DIST = 1.0;         // projection scaling factor
+    const CAMERA_HEIGHT = 1800;      // camera height above road
+    const CAMERA_DIST = 1.0;         // projection factor
 
     const TRACK_SEGMENTS = 300;      // total segments (loop)
     let segments = [];
@@ -127,7 +123,7 @@
         let elevation = 0.0;
         let type = 'asphalt';
 
-        // Varied track: straights, sweeping curves, sharp turns, hills, gravel
+        // Varied layout: straights, curves, hills, gravel
         if (i < 50) {
           curve = 0.0;
           elevation = Math.sin(i * 0.13) * 20;
@@ -289,7 +285,7 @@
 
     // ---------- RENDERING (Cruis'n USA style) ----------
 
-    // Draw the player car at the bottom center (taillights view)
+    // Draw the player car at bottom center (taillights view)
     function drawPlayerCar() {
       const carY = H - 85;
       const carW = 150;
@@ -344,83 +340,86 @@
       ctx.shadowColor = 'transparent';
     }
 
-    // Render the pseudo-3D road with perspective
+    // Render pseudo-3D road as a continuous strip from horizon to bottom
     function renderRoad() {
       const playerSeg = player.segPos;
       const baseIdx = Math.floor(playerSeg);
       const drawDist = 120; // segments ahead
 
-      let visible = [];
+      // Precompute projection data for each visible segment
+      let proj = [];
       for (let i = 0; i < drawDist; i++) {
         let segIdx = (baseIdx + i) % TRACK_SEGMENTS;
         let seg = segments[segIdx];
         let z = i * SEGMENT_LENGTH + (player.segPos - baseIdx) * SEGMENT_LENGTH;
-        if (z < 20) continue; // too close, skip
+        if (z < 1) z = 1; // avoid division by zero
 
-        // Perspective projection
-        let scale = CAMERA_DIST / (z + 0.1);
-        // Effective camera height minus elevation
+        let scale = CAMERA_DIST / z;
         let camY = CAMERA_HEIGHT - seg.elevation;
         let screenY = HORIZON_Y + camY * scale;
-        
-        // Road world X offset (curve + player lateral)
         let worldOffset = roadWorldX[segIdx];
         let centerX = W/2 + (worldOffset - player.x) * scale;
         let roadW = ROAD_WIDTH * scale;
 
-        visible.push({ seg, z, scale, screenY, centerX, roadW });
+        proj.push({ seg, z, scale, screenY, centerX, roadW });
       }
 
       // Sort back to front (painter's algorithm)
-      visible.sort((a, b) => b.z - a.z);
+      proj.sort((a, b) => b.z - a.z);
 
-      for (let v of visible) {
-        const { seg, scale, screenY, centerX, roadW } = v;
-        const left = centerX - roadW/2;
-        const right = centerX + roadW/2;
+      // Draw sky and ground first
+      ctx.fillStyle = '#2b6e3f';
+      ctx.fillRect(0, HORIZON_Y, W, H - HORIZON_Y);
 
-        // Grass / ground
-        ctx.fillStyle = '#2b6e3f';
-        ctx.fillRect(0, screenY-4, W, 18 * scale + 12);
-        
+      // Draw continuous road strips (far to near)
+      for (let i = 0; i < proj.length - 1; i++) {
+        const p1 = proj[i];      // farther
+        const p2 = proj[i+1];    // nearer
+
+        const left1 = p1.centerX - p1.roadW/2;
+        const right1 = p1.centerX + p1.roadW/2;
+        const left2 = p2.centerX - p2.roadW/2;
+        const right2 = p2.centerX + p2.roadW/2;
+
         // Road surface (asphalt or gravel)
-        ctx.fillStyle = seg.type === 'gravel' ? '#a58e72' : '#3a4048';
+        ctx.fillStyle = p1.seg.type === 'gravel' ? '#a58e72' : '#3a4048';
         ctx.beginPath();
-        ctx.moveTo(left, screenY);
-        ctx.lineTo(right, screenY);
-        ctx.lineTo(right + 18*scale, screenY + 14*scale);
-        ctx.lineTo(left - 18*scale, screenY + 14*scale);
+        ctx.moveTo(left1, p1.screenY);
+        ctx.lineTo(right1, p1.screenY);
+        ctx.lineTo(right2, p2.screenY);
+        ctx.lineTo(left2, p2.screenY);
+        ctx.closePath();
         ctx.fill();
 
-        // Rumble strips (red/white)
-        const rumble = roadW * 0.045;
+        // Rumble strips (left and right)
+        const rumbleW = p1.roadW * 0.045;
         ctx.fillStyle = '#bb2f2f';
-        ctx.fillRect(left - rumble, screenY-3, rumble, 10*scale+8);
-        ctx.fillRect(right, screenY-3, rumble, 10*scale+8);
+        ctx.fillRect(left1 - rumbleW, p1.screenY-1, rumbleW, p2.screenY - p1.screenY + 2);
+        ctx.fillRect(right1, p1.screenY-1, rumbleW, p2.screenY - p1.screenY + 2);
         ctx.fillStyle = '#e0e0e0';
-        ctx.fillRect(left - rumble*2, screenY, rumble, 7*scale);
-        ctx.fillRect(right + rumble, screenY, rumble, 7*scale);
+        ctx.fillRect(left1 - rumbleW*2, p1.screenY, rumbleW, p2.screenY - p1.screenY);
+        ctx.fillRect(right1 + rumbleW, p1.screenY, rumbleW, p2.screenY - p1.screenY);
 
-        // Lane markings (dashed)
+        // Lane markings (dashed center line)
         ctx.strokeStyle = '#f5e68b';
-        ctx.lineWidth = Math.max(3, 6*scale);
-        ctx.setLineDash([25*scale, 35*scale]);
+        ctx.lineWidth = Math.max(2, p1.scale * 8);
+        ctx.setLineDash([25 * p1.scale, 35 * p1.scale]);
         ctx.beginPath();
-        ctx.moveTo(centerX, screenY-3);
-        ctx.lineTo(centerX, screenY + 12*scale);
+        ctx.moveTo(p1.centerX, p1.screenY);
+        ctx.lineTo(p2.centerX, p2.screenY);
         ctx.stroke();
         ctx.setLineDash([]);
-        
+
         // Edge lines
         ctx.strokeStyle = '#d4d4d4';
-        ctx.lineWidth = Math.max(2, 4*scale);
+        ctx.lineWidth = Math.max(1.5, p1.scale * 5);
         ctx.beginPath();
-        ctx.moveTo(left+6, screenY);
-        ctx.lineTo(left+6, screenY+9*scale);
+        ctx.moveTo(left1+4, p1.screenY);
+        ctx.lineTo(left2+4, p2.screenY);
         ctx.stroke();
         ctx.beginPath();
-        ctx.moveTo(right-6, screenY);
-        ctx.lineTo(right-6, screenY+9*scale);
+        ctx.moveTo(right1-4, p1.screenY);
+        ctx.lineTo(right2-4, p2.screenY);
         ctx.stroke();
       }
 
@@ -430,7 +429,7 @@
         let z = dist * SEGMENT_LENGTH;
         if (z < 40 || z > 9000) continue;
         
-        let scale = CAMERA_DIST / (z + 0.1);
+        let scale = CAMERA_DIST / z;
         let segIdx = Math.floor(car.segPos) % TRACK_SEGMENTS;
         let seg = segments[segIdx];
         let worldOffset = roadWorldX[segIdx];
@@ -449,16 +448,15 @@
         ctx.fillRect(screenX - cw/4, screenY - ch*0.85, cw/2, 12*scale);
       }
 
-      // Roadside objects (trees, posts)
-      for (let v of visible) {
-        if (v.z < 700 || v.z > 5000) continue;
-        const s = v.scale;
-        const leftEdge = v.centerX - v.roadW/2;
-        const rightEdge = v.centerX + v.roadW/2;
-        const yBase = v.screenY;
+      // Roadside objects (trees, posts) - drawn over road but behind player car
+      for (let p of proj) {
+        if (p.z < 700 || p.z > 5000) continue;
+        const s = p.scale;
+        const leftEdge = p.centerX - p.roadW/2;
+        const rightEdge = p.centerX + p.roadW/2;
+        const yBase = p.screenY;
         
-        // Trees on left
-        if (Math.sin(v.seg.index * 0.7) > 0.25) {
+        if (Math.sin(p.seg.index * 0.7) > 0.25) {
           ctx.fillStyle = '#2d6a4f';
           ctx.fillRect(leftEdge - 50*s, yBase - 90*s, 18*s, 80*s);
           ctx.fillStyle = '#1b4d35';
@@ -466,8 +464,7 @@
           ctx.arc(leftEdge - 41*s, yBase - 110*s, 24*s, 0, Math.PI*2);
           ctx.fill();
         }
-        // Posts on right
-        if (Math.cos(v.seg.index) > 0.2) {
+        if (Math.cos(p.seg.index) > 0.2) {
           ctx.fillStyle = '#a57c50';
           ctx.fillRect(rightEdge + 28*s, yBase - 60*s, 14*s, 60*s);
           ctx.fillStyle = '#c99f6c';
@@ -515,7 +512,7 @@
       ctx.arc(W*0.75, HORIZON_Y-25, 45, 0, Math.PI*2);
       ctx.fill();
       
-      // Render the 3D road (from back to front)
+      // Render the continuous 3D road
       renderRoad();
       
       // Draw player car on top (bottom center)
