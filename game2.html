@@ -76,7 +76,7 @@
 
     // ---------- TRACK PARAMETERS (world units) ----------
     const SEGMENT_LENGTH = 200;
-    const ROAD_WIDTH = 1400;        // narrowed for better steering feel (was 2400)
+    const ROAD_WIDTH = 1400;        // narrowed for better steering feel
     const LANE_WIDTH = ROAD_WIDTH / 3;
     const CAMERA_HEIGHT = 1800;      // camera height above road
     const CAMERA_DIST = 1.0;         // projection factor
@@ -94,7 +94,7 @@
       maxSpeed: 480,
       accel: 220,
       brake: 320,
-      turnSpeed: 4.5,       // increased for responsiveness
+      turnSpeed: 4.5,
       grip: 0.92,
       offroadGrip: 0.70
     };
@@ -231,16 +231,17 @@
       player.speed -= player.speed * friction * dt;
       player.speed = Math.min(player.maxSpeed, Math.max(8.0, player.speed));
 
-      // Steering (speed sensitive, more responsive)
+      // Steering (speed sensitive, more responsive) - ISSUE 2: increased force
       if (left || right) {
         const steer = (left ? -1 : 0) + (right ? 1 : 0);
         const turnFactor = Math.min(1.5, player.speed / 200);
-        player.dx += steer * player.turnSpeed * dt * 30 * (0.4 + turnFactor);
+        player.dx += steer * player.turnSpeed * dt * 45 * (0.4 + turnFactor);
       }
 
       // Lateral friction (grip)
       player.dx *= (1.0 - surfaceGrip * 3.0 * dt);
-      player.x += player.dx * dt;
+      // ISSUE 2: increased lateral movement multiplier
+      player.x += player.dx * dt * 2.2;
 
       const maxX = ROAD_WIDTH * 0.72;
       if (player.x > maxX) { player.x = maxX; player.dx *= -0.2; }
@@ -346,7 +347,7 @@
       const baseIdx = Math.floor(playerSeg);
       const drawDist = 120;
 
-      // FIX 1: Smooth Z calculation with NO wrapping (continuous forward)
+      // Smooth Z calculation without wrapping (continuous forward)
       let playerPercent = player.segPos - baseIdx;
       
       // Precompute player base offset for curve relative positioning
@@ -360,25 +361,24 @@
         let segIdx = (baseIdx + i) % TRACK_SEGMENTS;
         let seg = segments[segIdx];
         
-        // FIX: Continuous Z distance without wrapping
+        // Continuous Z distance – skip segments behind or exactly at camera
         let z = (i - playerPercent) * SEGMENT_LENGTH;
-        if (z < 1) z = 1;   // clamp, but NO track-length wrapping
+        if (z <= 0) continue;   // no clamping, just skip
 
         let scale = CAMERA_DIST / z;
         
-        // FIX: Elevation relative to player's current segment
+        // Elevation relative to player's current segment
         let camY = CAMERA_HEIGHT + (playerSegData.elevation - seg.elevation);
         let screenY = HORIZON_Y + camY * scale;
         
-        // Curve offset relative to player position
-        let worldOffset = roadWorldX[segIdx] - playerBaseOffset;
+        // ISSUE 1: Amplify curve effect (multiply by 2.0)
+        let worldOffset = (roadWorldX[segIdx] - playerBaseOffset) * 2.0;
         let centerX = W/2 + (worldOffset - player.x) * scale;
         let roadW = ROAD_WIDTH * scale;
 
         proj.push({ seg, z, scale, screenY, centerX, roadW });
       }
 
-      // NO SORTING – drawing from back to front manually (avoid jitter)
       // Draw ground from horizon down
       ctx.fillStyle = '#2b6e3f';
       ctx.fillRect(0, HORIZON_Y, W, H - HORIZON_Y);
@@ -403,14 +403,28 @@
         ctx.closePath();
         ctx.fill();
 
-        // Rumble strips
-        const rumbleW = p1.roadW * 0.045;
+        // ISSUE 4: Rumble strips as trapezoids aligned with road edges
+        const rumbleW1 = p1.roadW * 0.05;
+        const rumbleW2 = p2.roadW * 0.05;
+
         ctx.fillStyle = '#bb2f2f';
-        ctx.fillRect(left1 - rumbleW, p1.screenY-1, rumbleW, p2.screenY - p1.screenY + 2);
-        ctx.fillRect(right1, p1.screenY-1, rumbleW, p2.screenY - p1.screenY + 2);
-        ctx.fillStyle = '#e0e0e0';
-        ctx.fillRect(left1 - rumbleW*2, p1.screenY, rumbleW, p2.screenY - p1.screenY);
-        ctx.fillRect(right1 + rumbleW, p1.screenY, rumbleW, p2.screenY - p1.screenY);
+        // LEFT RUMBLE
+        ctx.beginPath();
+        ctx.moveTo(left1 - rumbleW1, p1.screenY);
+        ctx.lineTo(left1, p1.screenY);
+        ctx.lineTo(left2, p2.screenY);
+        ctx.lineTo(left2 - rumbleW2, p2.screenY);
+        ctx.closePath();
+        ctx.fill();
+
+        // RIGHT RUMBLE
+        ctx.beginPath();
+        ctx.moveTo(right1, p1.screenY);
+        ctx.lineTo(right1 + rumbleW1, p1.screenY);
+        ctx.lineTo(right2 + rumbleW2, p2.screenY);
+        ctx.lineTo(right2, p2.screenY);
+        ctx.closePath();
+        ctx.fill();
 
         // Lane markings
         ctx.strokeStyle = '#f5e68b';
@@ -440,12 +454,13 @@
         let dist = car.segPos - player.segPos;
         if (dist < 0) dist += TRACK_SEGMENTS;
         let z = dist * SEGMENT_LENGTH;
-        if (z < 40 || z > 9000) continue;
+        // ISSUE 3: Relaxed culling (show more cars)
+        if (z < 5 || z > 15000) continue;
         
         let scale = CAMERA_DIST / z;
         let segIdx = Math.floor(car.segPos) % TRACK_SEGMENTS;
         let seg = segments[segIdx];
-        let worldOffset = roadWorldX[segIdx] - playerBaseOffset;
+        let worldOffset = (roadWorldX[segIdx] - playerBaseOffset) * 2.0;
         let camY = CAMERA_HEIGHT + (playerSegData.elevation - seg.elevation);
         let screenY = HORIZON_Y + camY * scale;
         let screenX = W/2 + (worldOffset - player.x + car.x) * scale;
