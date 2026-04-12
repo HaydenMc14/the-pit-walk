@@ -83,7 +83,7 @@
 
     const TRACK_SEGMENTS = 300;      // total segments (loop)
     let segments = [];
-    let roadWorldX = new Float32Array(TRACK_SEGMENTS); // accumulated curve offset
+    let roadWorldX = new Float32Array(TRACK_SEGMENTS); // accumulated curve offset (for AI maybe, but we'll compute local curve sum)
 
     // ---------- PLAYER ----------
     let player = {
@@ -151,7 +151,7 @@
         segments.push({ index: i, curve, elevation, type });
       }
 
-      // Precompute accumulated world X offset (curve integration)
+      // Precompute accumulated world X offset (curve integration) – not used for rendering now
       let accumX = 0;
       for (let i = 0; i < TRACK_SEGMENTS; i++) {
         roadWorldX[i] = accumX;
@@ -231,7 +231,7 @@
       player.speed -= player.speed * friction * dt;
       player.speed = Math.min(player.maxSpeed, Math.max(8.0, player.speed));
 
-      // Steering (speed sensitive, more responsive) - ISSUE 2: increased force
+      // Steering (speed sensitive, more responsive)
       if (left || right) {
         const steer = (left ? -1 : 0) + (right ? 1 : 0);
         const turnFactor = Math.min(1.5, player.speed / 200);
@@ -240,7 +240,6 @@
 
       // Lateral friction (grip)
       player.dx *= (1.0 - surfaceGrip * 3.0 * dt);
-      // ISSUE 2: increased lateral movement multiplier
       player.x += player.dx * dt * 2.2;
 
       const maxX = ROAD_WIDTH * 0.72;
@@ -350,33 +349,35 @@
       // Smooth Z calculation without wrapping (continuous forward)
       let playerPercent = player.segPos - baseIdx;
       
-      // Precompute player base offset for curve relative positioning
-      let playerBaseOffset = roadWorldX[baseIdx];
       // Get player segment for elevation relative calculation
       let playerSegData = segments[baseIdx];
 
       // Project each segment
       let proj = [];
+      let curveSum = 0;  // accumulated curve offset from player position
+
       for (let i = 0; i < drawDist; i++) {
         let segIdx = (baseIdx + i) % TRACK_SEGMENTS;
         let seg = segments[segIdx];
         
-        // Continuous Z distance – skip segments behind or exactly at camera
+        // ISSUE 1 FIX: Skip segments behind camera instead of clamping
         let z = (i - playerPercent) * SEGMENT_LENGTH;
-        if (z <= 0) continue;   // no clamping, just skip
+        if (z <= 0) continue;
+
+        // ISSUE 2 FIX: Accumulate curve progressively
+        if (i > 0) {
+          let prevIdx = (baseIdx + i - 1) % TRACK_SEGMENTS;
+          curveSum += segments[prevIdx].curve;
+        }
+        let worldOffset = curveSum * SEGMENT_LENGTH;  // lateral offset from curves
 
         let scale = CAMERA_DIST / z;
-        
-        // Elevation relative to player's current segment
         let camY = CAMERA_HEIGHT + (playerSegData.elevation - seg.elevation);
         let screenY = HORIZON_Y + camY * scale;
-        
-        // ISSUE 1: Amplify curve effect (multiply by 2.0)
-        let worldOffset = (roadWorldX[segIdx] - playerBaseOffset) * 2.0;
         let centerX = W/2 + (worldOffset - player.x) * scale;
         let roadW = ROAD_WIDTH * scale;
 
-        proj.push({ seg, z, scale, screenY, centerX, roadW });
+        proj.push({ seg, z, scale, screenY, centerX, roadW, worldOffset });
       }
 
       // Draw ground from horizon down
@@ -403,7 +404,7 @@
         ctx.closePath();
         ctx.fill();
 
-        // ISSUE 4: Rumble strips as trapezoids aligned with road edges
+        // Rumble strips as trapezoids aligned with road edges
         const rumbleW1 = p1.roadW * 0.05;
         const rumbleW2 = p2.roadW * 0.05;
 
@@ -449,18 +450,33 @@
         ctx.stroke();
       }
 
-      // AI traffic with correct wrap-around distance (unchanged)
+      // AI traffic (use the same worldOffset accumulation for consistency)
       for (let car of traffic) {
         let dist = car.segPos - player.segPos;
         if (dist < 0) dist += TRACK_SEGMENTS;
         let z = dist * SEGMENT_LENGTH;
-        // ISSUE 3: Relaxed culling (show more cars)
         if (z < 5 || z > 15000) continue;
         
+        // Compute curve offset for this car's position
+        let carBaseIdx = Math.floor(car.segPos);
+        let carPercent = car.segPos - carBaseIdx;
+        let carCurveSum = 0;
+        let steps = Math.floor(dist);
+        let fractional = dist - steps;
+        // Integrate curves from player to car position
+        for (let j = 0; j < steps; j++) {
+          let idx = (baseIdx + j) % TRACK_SEGMENTS;
+          carCurveSum += segments[idx].curve;
+        }
+        if (fractional > 0) {
+          let idx = (baseIdx + steps) % TRACK_SEGMENTS;
+          carCurveSum += segments[idx].curve * fractional;
+        }
+        let worldOffset = carCurveSum * SEGMENT_LENGTH;
+
         let scale = CAMERA_DIST / z;
         let segIdx = Math.floor(car.segPos) % TRACK_SEGMENTS;
         let seg = segments[segIdx];
-        let worldOffset = (roadWorldX[segIdx] - playerBaseOffset) * 2.0;
         let camY = CAMERA_HEIGHT + (playerSegData.elevation - seg.elevation);
         let screenY = HORIZON_Y + camY * scale;
         let screenX = W/2 + (worldOffset - player.x + car.x) * scale;
@@ -475,7 +491,7 @@
         ctx.fillRect(screenX - cw/4, screenY - ch*0.85, cw/2, 12*scale);
       }
 
-      // Roadside objects
+      // Roadside objects (use precomputed worldOffset from proj)
       for (let p of proj) {
         if (p.z < 700 || p.z > 5000) continue;
         const s = p.scale;
