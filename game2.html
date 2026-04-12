@@ -83,7 +83,7 @@
 
     const TRACK_SEGMENTS = 300;      // total segments (loop)
     let segments = [];
-    let roadWorldX = new Float32Array(TRACK_SEGMENTS); // accumulated curve offset (for AI maybe, but we'll compute local curve sum)
+    let roadWorldX = new Float32Array(TRACK_SEGMENTS); // accumulated curve offset (used for reference, not rendering now)
 
     // ---------- PLAYER ----------
     let player = {
@@ -123,26 +123,26 @@
         let elevation = 0.0;
         let type = 'asphalt';
 
-        // Varied layout with more pronounced curves
+        // Varied layout with pronounced curves
         if (i < 50) {
           curve = 0.0;
           elevation = Math.sin(i * 0.13) * 25;
         } else if (i < 90) {
-          curve = 0.035;              // noticeable right curve
+          curve = 0.035;
           elevation = 25 + Math.sin(i * 0.2) * 35;
         } else if (i < 140) {
-          curve = -0.030;             // left curve
+          curve = -0.030;
           elevation = 55 - (i-90) * 0.6;
         } else if (i < 190) {
-          curve = -0.065;             // sharp left
+          curve = -0.065;
           elevation = 45 + 70 * Math.sin((i-140) * 0.12);
           type = (i > 160 && i < 180) ? 'gravel' : 'asphalt';
         } else if (i < 240) {
-          curve = 0.055;              // sharp right
+          curve = 0.055;
           elevation = 30 + 50 * Math.cos(i * 0.1);
           type = (i > 210 && i < 230) ? 'gravel' : 'asphalt';
         } else {
-          curve = -0.025;             // sweeping left
+          curve = -0.025;
           elevation = 20 + 35 * Math.sin(i * 0.08);
           type = 'asphalt';
         }
@@ -151,7 +151,7 @@
         segments.push({ index: i, curve, elevation, type });
       }
 
-      // Precompute accumulated world X offset (curve integration) – not used for rendering now
+      // Precompute absolute world X (not used directly for rendering now)
       let accumX = 0;
       for (let i = 0; i < TRACK_SEGMENTS; i++) {
         roadWorldX[i] = accumX;
@@ -231,14 +231,14 @@
       player.speed -= player.speed * friction * dt;
       player.speed = Math.min(player.maxSpeed, Math.max(8.0, player.speed));
 
-      // Steering (speed sensitive, more responsive)
+      // Steering
       if (left || right) {
         const steer = (left ? -1 : 0) + (right ? 1 : 0);
         const turnFactor = Math.min(1.5, player.speed / 200);
         player.dx += steer * player.turnSpeed * dt * 45 * (0.4 + turnFactor);
       }
 
-      // Lateral friction (grip)
+      // Lateral friction
       player.dx *= (1.0 - surfaceGrip * 3.0 * dt);
       player.x += player.dx * dt * 2.2;
 
@@ -283,22 +283,19 @@
       if (nextCheckpointIndex >= CHECKPOINT_SEGMENTS.length && timer > 5) winFlag = true;
     }
 
-    // ---------- RENDERING (Robust continuous road) ----------
+    // ---------- RENDERING ----------
 
-    // Draw player car at bottom center
     function drawPlayerCar() {
       const carY = H - 85;
       const carW = 150;
       const carH = 95;
       const carX = W/2 - carW/2;
 
-      // Shadow
       ctx.fillStyle = '#00000066';
       ctx.beginPath();
       ctx.ellipse(W/2, carY + carH*0.65, carW*0.65, 18, 0, 0, Math.PI*2);
       ctx.fill();
 
-      // Body
       ctx.fillStyle = '#d1222a';
       ctx.shadowColor = '#ffaa00';
       ctx.shadowBlur = 14;
@@ -306,18 +303,15 @@
       ctx.rect(carX, carY, carW, carH);
       ctx.fill();
 
-      // Roof / rear window
       ctx.fillStyle = '#1a1a2e';
       ctx.fillRect(carX+15, carY-15, carW-30, 32);
       
-      // Spoiler
       ctx.fillStyle = '#333';
       ctx.fillRect(carX-8, carY+8, 14, 22);
       ctx.fillRect(carX+carW-6, carY+8, 14, 22);
       ctx.fillStyle = '#555';
       ctx.fillRect(carX-14, carY, carW+28, 10);
 
-      // Taillights
       ctx.shadowBlur = 24;
       ctx.fillStyle = '#ff3a3a';
       ctx.beginPath();
@@ -328,7 +322,6 @@
       ctx.arc(carX+carW-22, carY+carH-14, 16, 0, Math.PI*2);
       ctx.fill();
       
-      // License plate
       ctx.shadowBlur = 8;
       ctx.fillStyle = '#f5e6d3';
       ctx.fillRect(carX+carW/2-20, carY+carH-20, 40, 16);
@@ -340,36 +333,32 @@
       ctx.shadowColor = 'transparent';
     }
 
-    // Render pseudo-3D road as continuous quadrilaterals (no gaps)
     function renderRoad() {
       const playerSeg = player.segPos;
       const baseIdx = Math.floor(playerSeg);
       const drawDist = 120;
 
-      // Smooth Z calculation without wrapping (continuous forward)
       let playerPercent = player.segPos - baseIdx;
-      
-      // Get player segment for elevation relative calculation
       let playerSegData = segments[baseIdx];
 
-      // Project each segment
       let proj = [];
-      let curveSum = 0;  // accumulated curve offset from player position
+      let curveSum = 0;
 
       for (let i = 0; i < drawDist; i++) {
         let segIdx = (baseIdx + i) % TRACK_SEGMENTS;
         let seg = segments[segIdx];
         
-        // ISSUE 1 FIX: Skip segments behind camera instead of clamping
+        // ISSUE 1 FIX: Remove clamping – skip segments behind camera
         let z = (i - playerPercent) * SEGMENT_LENGTH;
         if (z <= 0) continue;
 
-        // ISSUE 2 FIX: Accumulate curve progressively
+        // Accumulate curve progressively
         if (i > 0) {
           let prevIdx = (baseIdx + i - 1) % TRACK_SEGMENTS;
           curveSum += segments[prevIdx].curve;
         }
-        let worldOffset = curveSum * SEGMENT_LENGTH;  // lateral offset from curves
+        // ISSUE 2 FIX: Amplify curve effect (multiply by 3.0)
+        let worldOffset = curveSum * SEGMENT_LENGTH * 3.0;
 
         let scale = CAMERA_DIST / z;
         let camY = CAMERA_HEIGHT + (playerSegData.elevation - seg.elevation);
@@ -380,21 +369,20 @@
         proj.push({ seg, z, scale, screenY, centerX, roadW, worldOffset });
       }
 
-      // Draw ground from horizon down
+      // Ground
       ctx.fillStyle = '#2b6e3f';
       ctx.fillRect(0, HORIZON_Y, W, H - HORIZON_Y);
 
-      // Draw road strips from farthest to nearest (reverse order)
+      // Draw road strips (far to near)
       for (let i = proj.length - 2; i >= 0; i--) {
-        const p1 = proj[i];      // farther
-        const p2 = proj[i+1];    // nearer
+        const p1 = proj[i];
+        const p2 = proj[i+1];
 
         const left1 = p1.centerX - p1.roadW/2;
         const right1 = p1.centerX + p1.roadW/2;
         const left2 = p2.centerX - p2.roadW/2;
         const right2 = p2.centerX + p2.roadW/2;
 
-        // Road surface
         ctx.fillStyle = p1.seg.type === 'gravel' ? '#a58e72' : '#3a4048';
         ctx.beginPath();
         ctx.moveTo(left1, p1.screenY);
@@ -404,12 +392,10 @@
         ctx.closePath();
         ctx.fill();
 
-        // Rumble strips as trapezoids aligned with road edges
         const rumbleW1 = p1.roadW * 0.05;
         const rumbleW2 = p2.roadW * 0.05;
 
         ctx.fillStyle = '#bb2f2f';
-        // LEFT RUMBLE
         ctx.beginPath();
         ctx.moveTo(left1 - rumbleW1, p1.screenY);
         ctx.lineTo(left1, p1.screenY);
@@ -418,7 +404,6 @@
         ctx.closePath();
         ctx.fill();
 
-        // RIGHT RUMBLE
         ctx.beginPath();
         ctx.moveTo(right1, p1.screenY);
         ctx.lineTo(right1 + rumbleW1, p1.screenY);
@@ -427,7 +412,6 @@
         ctx.closePath();
         ctx.fill();
 
-        // Lane markings
         ctx.strokeStyle = '#f5e68b';
         ctx.lineWidth = Math.max(2, p1.scale * 8);
         ctx.setLineDash([25 * p1.scale, 35 * p1.scale]);
@@ -437,7 +421,6 @@
         ctx.stroke();
         ctx.setLineDash([]);
 
-        // Edge lines
         ctx.strokeStyle = '#d4d4d4';
         ctx.lineWidth = Math.max(1.5, p1.scale * 5);
         ctx.beginPath();
@@ -450,20 +433,17 @@
         ctx.stroke();
       }
 
-      // AI traffic (use the same worldOffset accumulation for consistency)
+      // AI traffic (with curve integration and adjusted visibility/size)
       for (let car of traffic) {
         let dist = car.segPos - player.segPos;
         if (dist < 0) dist += TRACK_SEGMENTS;
         let z = dist * SEGMENT_LENGTH;
-        if (z < 5 || z > 15000) continue;
+        // ISSUE 3: adjust visibility range
+        if (z < 5 || z > 8000) continue;
         
-        // Compute curve offset for this car's position
-        let carBaseIdx = Math.floor(car.segPos);
-        let carPercent = car.segPos - carBaseIdx;
         let carCurveSum = 0;
         let steps = Math.floor(dist);
         let fractional = dist - steps;
-        // Integrate curves from player to car position
         for (let j = 0; j < steps; j++) {
           let idx = (baseIdx + j) % TRACK_SEGMENTS;
           carCurveSum += segments[idx].curve;
@@ -472,7 +452,7 @@
           let idx = (baseIdx + steps) % TRACK_SEGMENTS;
           carCurveSum += segments[idx].curve * fractional;
         }
-        let worldOffset = carCurveSum * SEGMENT_LENGTH;
+        let worldOffset = carCurveSum * SEGMENT_LENGTH * 3.0;
 
         let scale = CAMERA_DIST / z;
         let segIdx = Math.floor(car.segPos) % TRACK_SEGMENTS;
@@ -481,8 +461,9 @@
         let screenY = HORIZON_Y + camY * scale;
         let screenX = W/2 + (worldOffset - player.x + car.x) * scale;
         
-        let cw = 380 * scale;
-        let ch = 190 * scale;
+        // ISSUE 3: increase car size
+        let cw = 600 * scale;
+        let ch = 300 * scale;
         ctx.fillStyle = '#3a6ea5';
         ctx.fillRect(screenX - cw/2, screenY - ch*0.65, cw, ch);
         ctx.fillStyle = '#1e2f47';
@@ -491,7 +472,7 @@
         ctx.fillRect(screenX - cw/4, screenY - ch*0.85, cw/2, 12*scale);
       }
 
-      // Roadside objects (use precomputed worldOffset from proj)
+      // Roadside objects
       for (let p of proj) {
         if (p.z < 700 || p.z > 5000) continue;
         const s = p.scale;
@@ -542,14 +523,12 @@
     function render() {
       ctx.clearRect(0, 0, W, H);
       
-      // Sky
       const grad = ctx.createLinearGradient(0, 0, 0, HORIZON_Y+60);
       grad.addColorStop(0, '#0a1c2f');
       grad.addColorStop(0.8, '#5f9fc0');
       ctx.fillStyle = grad;
       ctx.fillRect(0, 0, W, HORIZON_Y+40);
       
-      // Sun
       ctx.fillStyle = '#fcd48c';
       ctx.beginPath();
       ctx.arc(W*0.75, HORIZON_Y-25, 45, 0, Math.PI*2);
@@ -572,7 +551,6 @@
       }
     }
 
-    // ---------- GAME LOOP ----------
     function gameLoop(now) {
       requestAnimationFrame(gameLoop);
       if (!lastTimestamp) { lastTimestamp = now; return; }
