@@ -76,7 +76,7 @@
 
     // ---------- TRACK PARAMETERS (world units) ----------
     const SEGMENT_LENGTH = 200;
-    const ROAD_WIDTH = 1400;        // narrowed for better steering feel
+    const ROAD_WIDTH = 1400;        // narrowed for better steering feel (was 2400)
     const LANE_WIDTH = ROAD_WIDTH / 3;
     const CAMERA_HEIGHT = 1800;      // camera height above road
     const CAMERA_DIST = 1.0;         // projection factor
@@ -94,7 +94,7 @@
       maxSpeed: 480,
       accel: 220,
       brake: 320,
-      turnSpeed: 4.5,
+      turnSpeed: 4.5,       // increased for responsiveness
       grip: 0.92,
       offroadGrip: 0.70
     };
@@ -346,7 +346,7 @@
       const baseIdx = Math.floor(playerSeg);
       const drawDist = 120;
 
-      // Smooth Z calculation without wrapping (continuous forward)
+      // FIX 1: Smooth Z calculation with NO wrapping (continuous forward)
       let playerPercent = player.segPos - baseIdx;
       
       // Precompute player base offset for curve relative positioning
@@ -360,13 +360,13 @@
         let segIdx = (baseIdx + i) % TRACK_SEGMENTS;
         let seg = segments[segIdx];
         
-        // Continuous Z distance – skip segments behind or exactly at camera
+        // FIX: Continuous Z distance without wrapping
         let z = (i - playerPercent) * SEGMENT_LENGTH;
-        if (z <= 0) continue;   // no clamping, just skip
+        if (z < 1) z = 1;   // clamp, but NO track-length wrapping
 
         let scale = CAMERA_DIST / z;
         
-        // Elevation relative to player's current segment
+        // FIX: Elevation relative to player's current segment
         let camY = CAMERA_HEIGHT + (playerSegData.elevation - seg.elevation);
         let screenY = HORIZON_Y + camY * scale;
         
@@ -378,6 +378,7 @@
         proj.push({ seg, z, scale, screenY, centerX, roadW });
       }
 
+      // NO SORTING – drawing from back to front manually (avoid jitter)
       // Draw ground from horizon down
       ctx.fillStyle = '#2b6e3f';
       ctx.fillRect(0, HORIZON_Y, W, H - HORIZON_Y);
