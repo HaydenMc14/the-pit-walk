@@ -76,7 +76,7 @@
 
     // ---------- TRACK PARAMETERS (world units) ----------
     const SEGMENT_LENGTH = 200;
-    const ROAD_WIDTH = 2400;
+    const ROAD_WIDTH = 1400;        // narrowed for better steering feel (was 2400)
     const LANE_WIDTH = ROAD_WIDTH / 3;
     const CAMERA_HEIGHT = 1800;      // camera height above road
     const CAMERA_DIST = 1.0;         // projection factor
@@ -346,18 +346,29 @@
       const baseIdx = Math.floor(playerSeg);
       const drawDist = 120;
 
+      // FIX 1: Smooth Z calculation using fractional player position
+      let playerPercent = player.segPos - baseIdx;
+      
+      // Precompute player base offset for curve relative positioning (FIX 2)
+      let playerBaseOffset = roadWorldX[baseIdx];
+
       // Project each segment
       let proj = [];
       for (let i = 0; i < drawDist; i++) {
         let segIdx = (baseIdx + i) % TRACK_SEGMENTS;
         let seg = segments[segIdx];
-        let z = i * SEGMENT_LENGTH + (player.segPos - baseIdx) * SEGMENT_LENGTH;
+        
+        // FIX 1: Continuous Z distance (no snapping)
+        let z = (i - playerPercent) * SEGMENT_LENGTH;
+        if (z <= 0) z += TRACK_SEGMENTS * SEGMENT_LENGTH;
         if (z < 1) z = 1;
 
         let scale = CAMERA_DIST / z;
         let camY = CAMERA_HEIGHT - seg.elevation;
         let screenY = HORIZON_Y + camY * scale;
-        let worldOffset = roadWorldX[segIdx];
+        
+        // FIX 2: Curve offset relative to player position
+        let worldOffset = roadWorldX[segIdx] - playerBaseOffset;
         let centerX = W/2 + (worldOffset - player.x) * scale;
         let roadW = ROAD_WIDTH * scale;
 
@@ -423,16 +434,17 @@
         ctx.stroke();
       }
 
-      // Draw AI cars
+      // FIX 3: AI traffic with correct wrap-around distance
       for (let car of traffic) {
         let dist = car.segPos - player.segPos;
+        if (dist < 0) dist += TRACK_SEGMENTS;
         let z = dist * SEGMENT_LENGTH;
         if (z < 40 || z > 9000) continue;
         
         let scale = CAMERA_DIST / z;
         let segIdx = Math.floor(car.segPos) % TRACK_SEGMENTS;
         let seg = segments[segIdx];
-        let worldOffset = roadWorldX[segIdx];
+        let worldOffset = roadWorldX[segIdx] - playerBaseOffset;
         let camY = CAMERA_HEIGHT - seg.elevation;
         let screenY = HORIZON_Y + camY * scale;
         let screenX = W/2 + (worldOffset - player.x + car.x) * scale;
