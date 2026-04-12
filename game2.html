@@ -346,11 +346,13 @@
       const baseIdx = Math.floor(playerSeg);
       const drawDist = 120;
 
-      // FIX 1: Smooth Z calculation using fractional player position
+      // FIX 1: Smooth Z calculation with NO wrapping (continuous forward)
       let playerPercent = player.segPos - baseIdx;
       
-      // Precompute player base offset for curve relative positioning (FIX 2)
+      // Precompute player base offset for curve relative positioning
       let playerBaseOffset = roadWorldX[baseIdx];
+      // Get player segment for elevation relative calculation
+      let playerSegData = segments[baseIdx];
 
       // Project each segment
       let proj = [];
@@ -358,16 +360,17 @@
         let segIdx = (baseIdx + i) % TRACK_SEGMENTS;
         let seg = segments[segIdx];
         
-        // FIX 1: Continuous Z distance (no snapping)
+        // FIX: Continuous Z distance without wrapping
         let z = (i - playerPercent) * SEGMENT_LENGTH;
-        if (z <= 0) z += TRACK_SEGMENTS * SEGMENT_LENGTH;
-        if (z < 1) z = 1;
+        if (z < 1) z = 1;   // clamp, but NO track-length wrapping
 
         let scale = CAMERA_DIST / z;
-        let camY = CAMERA_HEIGHT - seg.elevation;
+        
+        // FIX: Elevation relative to player's current segment
+        let camY = CAMERA_HEIGHT + (playerSegData.elevation - seg.elevation);
         let screenY = HORIZON_Y + camY * scale;
         
-        // FIX 2: Curve offset relative to player position
+        // Curve offset relative to player position
         let worldOffset = roadWorldX[segIdx] - playerBaseOffset;
         let centerX = W/2 + (worldOffset - player.x) * scale;
         let roadW = ROAD_WIDTH * scale;
@@ -375,15 +378,13 @@
         proj.push({ seg, z, scale, screenY, centerX, roadW });
       }
 
-      // Sort far to near
-      proj.sort((a, b) => b.z - a.z);
-
+      // NO SORTING – drawing from back to front manually (avoid jitter)
       // Draw ground from horizon down
       ctx.fillStyle = '#2b6e3f';
       ctx.fillRect(0, HORIZON_Y, W, H - HORIZON_Y);
 
-      // Draw road strips (far to near)
-      for (let i = 0; i < proj.length - 1; i++) {
+      // Draw road strips from farthest to nearest (reverse order)
+      for (let i = proj.length - 2; i >= 0; i--) {
         const p1 = proj[i];      // farther
         const p2 = proj[i+1];    // nearer
 
@@ -434,7 +435,7 @@
         ctx.stroke();
       }
 
-      // FIX 3: AI traffic with correct wrap-around distance
+      // AI traffic with correct wrap-around distance (unchanged)
       for (let car of traffic) {
         let dist = car.segPos - player.segPos;
         if (dist < 0) dist += TRACK_SEGMENTS;
@@ -445,7 +446,7 @@
         let segIdx = Math.floor(car.segPos) % TRACK_SEGMENTS;
         let seg = segments[segIdx];
         let worldOffset = roadWorldX[segIdx] - playerBaseOffset;
-        let camY = CAMERA_HEIGHT - seg.elevation;
+        let camY = CAMERA_HEIGHT + (playerSegData.elevation - seg.elevation);
         let screenY = HORIZON_Y + camY * scale;
         let screenX = W/2 + (worldOffset - player.x + car.x) * scale;
         
