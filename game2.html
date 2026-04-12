@@ -76,20 +76,20 @@
 
     // ---------- TRACK PARAMETERS (world units) ----------
     const SEGMENT_LENGTH = 200;
-    const ROAD_WIDTH = 1400;        // narrowed for better steering feel
+    const ROAD_WIDTH = 1400;
     const LANE_WIDTH = ROAD_WIDTH / 3;
-    const CAMERA_HEIGHT = 1800;      // camera height above road
-    const CAMERA_DIST = 1.0;         // projection factor
+    const CAMERA_HEIGHT = 1800;
+    const CAMERA_DIST = 1.0;
 
-    const TRACK_SEGMENTS = 300;      // total segments (loop)
+    const TRACK_SEGMENTS = 300;
     let segments = [];
-    let roadWorldX = new Float32Array(TRACK_SEGMENTS); // accumulated curve offset (used for reference, not rendering now)
+    let roadWorldX = new Float32Array(TRACK_SEGMENTS); // not used for rendering
 
     // ---------- PLAYER ----------
     let player = {
       segPos: 3.0,
-      x: 0.0,               // lateral world position
-      dx: 0.0,              // lateral speed (drift)
+      x: 0.0,
+      dx: 0.0,
       speed: 70.0,
       maxSpeed: 480,
       accel: 220,
@@ -115,7 +115,7 @@
       KeyW: false, KeyS: false, KeyA: false, KeyD: false
     };
 
-    // ---------- TRACK GENERATION (stronger curves, visible hills) ----------
+    // ---------- TRACK GENERATION ----------
     function buildTrack() {
       segments = [];
       for (let i = 0; i < TRACK_SEGMENTS; i++) {
@@ -123,7 +123,6 @@
         let elevation = 0.0;
         let type = 'asphalt';
 
-        // Varied layout with pronounced curves
         if (i < 50) {
           curve = 0.0;
           elevation = Math.sin(i * 0.13) * 25;
@@ -151,7 +150,6 @@
         segments.push({ index: i, curve, elevation, type });
       }
 
-      // Precompute absolute world X (not used directly for rendering now)
       let accumX = 0;
       for (let i = 0; i < TRACK_SEGMENTS; i++) {
         roadWorldX[i] = accumX;
@@ -213,7 +211,7 @@
       return s.type === 'gravel' ? player.offroadGrip : player.grip;
     }
 
-    // ---------- PHYSICS UPDATE (fixed timestep) ----------
+    // ---------- PHYSICS UPDATE ----------
     function fixedUpdate(dt) {
       if (!gameActive || gameOver) return;
 
@@ -224,21 +222,18 @@
 
       const surfaceGrip = getCurrentSurfaceGrip(player.segPos);
 
-      // Acceleration / brake
       if (up) player.speed += player.accel * dt;
       if (down) player.speed -= player.brake * dt;
       const friction = (surfaceGrip * 0.12) + 0.04;
       player.speed -= player.speed * friction * dt;
       player.speed = Math.min(player.maxSpeed, Math.max(8.0, player.speed));
 
-      // Steering
       if (left || right) {
         const steer = (left ? -1 : 0) + (right ? 1 : 0);
         const turnFactor = Math.min(1.5, player.speed / 200);
         player.dx += steer * player.turnSpeed * dt * 45 * (0.4 + turnFactor);
       }
 
-      // Lateral friction
       player.dx *= (1.0 - surfaceGrip * 3.0 * dt);
       player.x += player.dx * dt * 2.2;
 
@@ -246,19 +241,16 @@
       if (player.x > maxX) { player.x = maxX; player.dx *= -0.2; }
       if (player.x < -maxX) { player.x = -maxX; player.dx *= -0.2; }
 
-      // Move along track
       player.segPos += (player.speed / SEGMENT_LENGTH) * dt;
       if (player.segPos >= TRACK_SEGMENTS) player.segPos -= TRACK_SEGMENTS;
       if (player.segPos < 0) player.segPos += TRACK_SEGMENTS;
 
-      // AI traffic update
       for (let car of traffic) {
         car.segPos += (car.speed / SEGMENT_LENGTH) * dt;
         if (car.segPos >= TRACK_SEGMENTS) car.segPos -= TRACK_SEGMENTS;
         if (car.segPos < 0) car.segPos += TRACK_SEGMENTS;
       }
 
-      // Collision with traffic
       for (let car of traffic) {
         let dist = Math.abs(car.segPos - player.segPos);
         if (dist > TRACK_SEGMENTS/2) dist = TRACK_SEGMENTS - dist;
@@ -269,7 +261,6 @@
         }
       }
 
-      // Checkpoints
       const curSeg = Math.floor(player.segPos);
       if (nextCheckpointIndex < CHECKPOINT_SEGMENTS.length) {
         const cp = CHECKPOINT_SEGMENTS[nextCheckpointIndex];
@@ -333,6 +324,42 @@
       ctx.shadowColor = 'transparent';
     }
 
+    function drawMountains() {
+      // Distant mountain silhouette
+      ctx.fillStyle = '#2d4a5e';
+      ctx.beginPath();
+      ctx.moveTo(0, HORIZON_Y);
+      
+      const peaks = 8;
+      for (let i = 0; i <= peaks; i++) {
+        let x = (i / peaks) * W;
+        let height = 30 + 40 * Math.sin(i * 1.5) * Math.sin(i * 0.7);
+        ctx.lineTo(x, HORIZON_Y - height);
+      }
+      ctx.lineTo(W, HORIZON_Y);
+      ctx.lineTo(0, HORIZON_Y);
+      ctx.closePath();
+      ctx.fill();
+      
+      // Snow caps
+      ctx.fillStyle = '#e0f0ff';
+      ctx.beginPath();
+      ctx.moveTo(0, HORIZON_Y);
+      for (let i = 0; i <= peaks; i++) {
+        let x = (i / peaks) * W;
+        let height = 30 + 40 * Math.sin(i * 1.5) * Math.sin(i * 0.7);
+        if (height > 45) {
+          ctx.lineTo(x, HORIZON_Y - height + 10);
+        } else {
+          ctx.lineTo(x, HORIZON_Y - height);
+        }
+      }
+      ctx.lineTo(W, HORIZON_Y);
+      ctx.lineTo(0, HORIZON_Y);
+      ctx.closePath();
+      ctx.fill();
+    }
+
     function renderRoad() {
       const playerSeg = player.segPos;
       const baseIdx = Math.floor(playerSeg);
@@ -341,23 +368,21 @@
       let playerPercent = player.segPos - baseIdx;
       let playerSegData = segments[baseIdx];
 
-      let proj = [];
-      let curveSum = 0;
+      // ISSUE 1 FIX: Anchor curve sum to player's exact fractional position
+      let curveSum = -segments[baseIdx].curve * playerPercent;
 
+      let proj = [];
       for (let i = 0; i < drawDist; i++) {
         let segIdx = (baseIdx + i) % TRACK_SEGMENTS;
         let seg = segments[segIdx];
         
-        // ISSUE 1 FIX: Remove clamping – skip segments behind camera
         let z = (i - playerPercent) * SEGMENT_LENGTH;
         if (z <= 0) continue;
 
-        // Accumulate curve progressively
         if (i > 0) {
           let prevIdx = (baseIdx + i - 1) % TRACK_SEGMENTS;
           curveSum += segments[prevIdx].curve;
         }
-        // ISSUE 2 FIX: Amplify curve effect (multiply by 3.0)
         let worldOffset = curveSum * SEGMENT_LENGTH * 3.0;
 
         let scale = CAMERA_DIST / z;
@@ -366,14 +391,14 @@
         let centerX = W/2 + (worldOffset - player.x) * scale;
         let roadW = ROAD_WIDTH * scale;
 
-        proj.push({ seg, z, scale, screenY, centerX, roadW, worldOffset });
+        proj.push({ seg, z, scale, screenY, centerX, roadW });
       }
 
-      // Ground
+      // Ground base
       ctx.fillStyle = '#2b6e3f';
       ctx.fillRect(0, HORIZON_Y, W, H - HORIZON_Y);
 
-      // Draw road strips (far to near)
+      // Road strips
       for (let i = proj.length - 2; i >= 0; i--) {
         const p1 = proj[i];
         const p2 = proj[i+1];
@@ -433,15 +458,15 @@
         ctx.stroke();
       }
 
-      // AI traffic (with curve integration and adjusted visibility/size)
+      // AI traffic (with anchored curve integration)
       for (let car of traffic) {
         let dist = car.segPos - player.segPos;
         if (dist < 0) dist += TRACK_SEGMENTS;
         let z = dist * SEGMENT_LENGTH;
-        // ISSUE 3: adjust visibility range
         if (z < 5 || z > 8000) continue;
         
-        let carCurveSum = 0;
+        // Anchor curve sum for AI car using player fractional offset
+        let carCurveSum = -segments[baseIdx].curve * playerPercent;
         let steps = Math.floor(dist);
         let fractional = dist - steps;
         for (let j = 0; j < steps; j++) {
@@ -461,7 +486,6 @@
         let screenY = HORIZON_Y + camY * scale;
         let screenX = W/2 + (worldOffset - player.x + car.x) * scale;
         
-        // ISSUE 3: increase car size
         let cw = 600 * scale;
         let ch = 300 * scale;
         ctx.fillStyle = '#3a6ea5';
@@ -472,7 +496,7 @@
         ctx.fillRect(screenX - cw/4, screenY - ch*0.85, cw/2, 12*scale);
       }
 
-      // Roadside objects
+      // ISSUE 3: Improved roadside objects (trees left, poles right)
       for (let p of proj) {
         if (p.z < 700 || p.z > 5000) continue;
         const s = p.scale;
@@ -480,20 +504,31 @@
         const rightEdge = p.centerX + p.roadW/2;
         const yBase = p.screenY;
         
+        // Trees on left
         if (Math.sin(p.seg.index * 0.7) > 0.25) {
-          ctx.fillStyle = '#2d6a4f';
-          ctx.fillRect(leftEdge - 50*s, yBase - 90*s, 18*s, 80*s);
-          ctx.fillStyle = '#1b4d35';
+          const trunkW = 12 * s;
+          const trunkH = 70 * s;
+          ctx.fillStyle = '#6b4f32';
+          ctx.fillRect(leftEdge - 45 * s - trunkW/2, yBase - trunkH, trunkW, trunkH);
+          ctx.fillStyle = '#1f6e3f';
           ctx.beginPath();
-          ctx.arc(leftEdge - 41*s, yBase - 110*s, 24*s, 0, Math.PI*2);
+          ctx.arc(leftEdge - 45 * s, yBase - trunkH - 15 * s, 28 * s, 0, Math.PI*2);
+          ctx.fill();
+          ctx.fillStyle = '#2a8e4f';
+          ctx.beginPath();
+          ctx.arc(leftEdge - 55 * s, yBase - trunkH - 25 * s, 20 * s, 0, Math.PI*2);
           ctx.fill();
         }
+        
+        // Poles on right
         if (Math.cos(p.seg.index) > 0.2) {
+          const poleW = 10 * s;
+          const poleH = 60 * s;
           ctx.fillStyle = '#a57c50';
-          ctx.fillRect(rightEdge + 28*s, yBase - 60*s, 14*s, 60*s);
+          ctx.fillRect(rightEdge + 30 * s, yBase - poleH, poleW, poleH);
           ctx.fillStyle = '#c99f6c';
           ctx.beginPath();
-          ctx.arc(rightEdge + 35*s, yBase - 70*s, 16*s, 0, Math.PI*2);
+          ctx.arc(rightEdge + 35 * s, yBase - poleH - 5 * s, 12 * s, 0, Math.PI*2);
           ctx.fill();
         }
       }
@@ -523,16 +558,21 @@
     function render() {
       ctx.clearRect(0, 0, W, H);
       
+      // Sky
       const grad = ctx.createLinearGradient(0, 0, 0, HORIZON_Y+60);
       grad.addColorStop(0, '#0a1c2f');
       grad.addColorStop(0.8, '#5f9fc0');
       ctx.fillStyle = grad;
       ctx.fillRect(0, 0, W, HORIZON_Y+40);
       
+      // Sun
       ctx.fillStyle = '#fcd48c';
       ctx.beginPath();
       ctx.arc(W*0.75, HORIZON_Y-25, 45, 0, Math.PI*2);
       ctx.fill();
+      
+      // ISSUE 2: Distant mountains
+      drawMountains();
       
       renderRoad();
       drawPlayerCar();
